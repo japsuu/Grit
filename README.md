@@ -14,3 +14,7 @@ Built in MonoGame.
 - Dirty recting,
 - Minecraft-like random ticking system,
 - Plethora of debugging tools.
+
+---
+
+Most of the interesting logic can be found [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/WorldMatrix.cs)(WorldMatrix.cs) and [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/DirtyChunk.cs)(DirtyChunk.cs)
