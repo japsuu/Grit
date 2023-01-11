@@ -1,6 +1,6 @@
 # Grit
 
-Complex cellular automata; Minecraft in 2D, but everything is simulated.
+Single buffered complex cellular automata; Minecraft in 2D, but everything is simulated.
 
 Pixels are simulated based on their physical properties.
 
