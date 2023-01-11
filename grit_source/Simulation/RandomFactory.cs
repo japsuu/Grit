@@ -28,8 +28,6 @@ public static class RandomFactory
         SeedlessFnl.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
         SeedlessFnl.SetFrequency(0.02f);
     }
-    
-    
 
     /// <summary>
     /// Returns random color between min and max.
@@ -67,4 +65,8 @@ public static class RandomFactory
     public static float GetNoise(int x, int y) => (SeedlessFnl.GetNoise(x, y) + 1) / 2;
 
     public static bool RandomBool() => SeedlessRandom.NextDouble() < 0.5;
+    
+    public static int RandomBetween(int minInclusive, int maxExclusive) => SeedlessRandom.Next(minInclusive, maxExclusive);
+    
+    public static (int x, int y) RandomPosInWorld() => (SeedlessRandom.Next(0, Settings.WORLD_WIDTH), SeedlessRandom.Next(0, Settings.WORLD_HEIGHT));
 }

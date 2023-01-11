@@ -8,89 +8,96 @@ namespace Grit.Simulation.World;
 /// </summary>
 public class DirtyChunk
 {
-    private const int DIRTY_GRACE_FRAMES = 3;
     
-    public bool LastFrameWasDirty;
+    // Values constructed at the end of a frame from the dirty changes.
+    public bool IsCurrentlyDirty;
+    public int ConstructedMinX;
+    public int ConstructedMinY;
+    public int ConstructedMaxX;
+    public int ConstructedMaxY;
 
-    public int LastFrameDirtyMinX;
-    public int LastFrameDirtyMinY;
-    public int LastFrameDirtyMaxX;
-    public int LastFrameDirtyMaxY;
+    // Internal values used to determine dirty changes.
+    private bool internalIsDirty;
+    private int internalMinX;
+    private int internalMinY;
+    private int internalMaxX;
+    private int internalMaxY;
+    
+    private readonly int chunkPosX;
+    private readonly int chunkPosY;
 
-    private bool thisFrameIsDirty;
-    private int thisFrameDirtyMinX;
-    private int thisFrameDirtyMinY;
-    private int thisFrameDirtyMaxX;
-    private int thisFrameDirtyMaxY;
-
-    private int currentGraceFrames = 0;
+    public DirtyChunk(int chunkPosX, int chunkPosY)
+    {
+        this.chunkPosX = chunkPosX;
+        this.chunkPosY = chunkPosY;
+        
+        SetEverythingClean();
+    }
 
     /// <summary>
     /// Sets the given position as dirty inside this chunk.
     /// </summary>
     public void SetDirtyAt(int x, int y)
     {
-        // Determine if the current dirty rect needs to be resized
-        thisFrameDirtyMinX = Math.Min(thisFrameDirtyMinX, x);
-        thisFrameDirtyMinY = Math.Min(thisFrameDirtyMinY, y);
-        thisFrameDirtyMaxX = Math.Max(thisFrameDirtyMaxX, x);
-        thisFrameDirtyMaxY = Math.Max(thisFrameDirtyMaxY, y);
+        // Resize the current dirty rect if needed.
+        internalMinX = Math.Min(internalMinX, x);
+        internalMinY = Math.Min(internalMinY, y);
+        internalMaxX = Math.Max(internalMaxX, x);
+        internalMaxY = Math.Max(internalMaxY, y);
 
-        thisFrameIsDirty = true;
-        
-        currentGraceFrames = DIRTY_GRACE_FRAMES;
+        internalIsDirty = true;
     }
 
     /// <summary>
-    /// Needs to be called after each update round.
+    /// Needs to be called after all the frame's updates are done.
     /// </summary>
-    public void AfterReadDirty()
+    public void ConstructDirtyRectangle()
     {
-        //LastFrameWasDirty = true;
-        LastFrameWasDirty = thisFrameIsDirty;
-        LastFrameDirtyMinX = thisFrameDirtyMinX;
-        LastFrameDirtyMinY = thisFrameDirtyMinY;
-        LastFrameDirtyMaxX = thisFrameDirtyMaxX;
-        LastFrameDirtyMaxY = thisFrameDirtyMaxY;
-        if (currentGraceFrames > 0)
-        {
-            currentGraceFrames -= 1;
-        }
-        else
-        {
-            thisFrameIsDirty = false;
-            thisFrameDirtyMinX = int.MaxValue;
-            thisFrameDirtyMinY = int.MaxValue;
-            thisFrameDirtyMaxX = int.MinValue;
-            thisFrameDirtyMaxY = int.MinValue;
-        }
+        // Write the public values
+        IsCurrentlyDirty = internalIsDirty;
+        ConstructedMinX = internalMinX;
+        ConstructedMinY = internalMinY;
+        ConstructedMaxX = internalMaxX;
+        ConstructedMaxY = internalMaxY;
+        
+        internalIsDirty = false;
+        internalMinX = int.MaxValue;
+        internalMinY = int.MaxValue;
+        internalMaxX = int.MinValue;
+        internalMaxY = int.MinValue;
     }
 
-    public void SetEverythingDirty(int myX, int myY)
+    public void SetEverythingDirty()
     {
-        thisFrameDirtyMinX = myX;
-        thisFrameDirtyMinY = myY;
-        thisFrameDirtyMaxX = myX + Settings.CHUNK_SIZE - 1;
-        thisFrameDirtyMaxY = myY + Settings.CHUNK_SIZE - 1;
-        thisFrameIsDirty = true;
-        LastFrameDirtyMinX = thisFrameDirtyMinX;
-        LastFrameDirtyMinY = thisFrameDirtyMinY;
-        LastFrameDirtyMaxX = thisFrameDirtyMaxX;
-        LastFrameDirtyMaxY = thisFrameDirtyMaxY;
-        LastFrameWasDirty = thisFrameIsDirty;
+        // Dirty internally
+        internalIsDirty = true;
+        internalMinX = chunkPosX;
+        internalMinY = chunkPosY;
+        internalMaxX = chunkPosX + Settings.CHUNK_SIZE - 1;
+        internalMaxY = chunkPosY + Settings.CHUNK_SIZE - 1;
+        
+        // Propagate
+        IsCurrentlyDirty = internalIsDirty;
+        ConstructedMinX = internalMinX;
+        ConstructedMinY = internalMinY;
+        ConstructedMaxX = internalMaxX;
+        ConstructedMaxY = internalMaxY;
     }
 
     public void SetEverythingClean()
     {
-        thisFrameIsDirty = false;
-        thisFrameDirtyMinX = int.MaxValue;
-        thisFrameDirtyMinY = int.MaxValue;
-        thisFrameDirtyMaxX = int.MinValue;
-        thisFrameDirtyMaxY = int.MinValue;
-        LastFrameWasDirty = thisFrameIsDirty;
-        LastFrameDirtyMinX = thisFrameDirtyMinX;
-        LastFrameDirtyMinY = thisFrameDirtyMinY;
-        LastFrameDirtyMaxX = thisFrameDirtyMaxX;
-        LastFrameDirtyMaxY = thisFrameDirtyMaxY;
+        // Clean internally
+        internalIsDirty = false;
+        internalMinX = int.MaxValue;
+        internalMinY = int.MaxValue;
+        internalMaxX = int.MinValue;
+        internalMaxY = int.MinValue;
+        
+        // Propagate
+        IsCurrentlyDirty = internalIsDirty;
+        ConstructedMinX = internalMinX;
+        ConstructedMinY = internalMinY;
+        ConstructedMaxX = internalMaxX;
+        ConstructedMaxY = internalMaxY;
     }
 }

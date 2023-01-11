@@ -15,10 +15,12 @@ public static class SimulationManager
 {
     private static Rectangle screenBounds;
     private static Texture2D canvas;
+    private static RectangleF[] dirtyRects;
 
     // Debug stuff
     private static bool isSnowingToggled;
-    private static Vector2 cursorPos;
+    private static Vector2 cursorScreenPos;
+    private static Vector2 cursorWorldPos;
     private static string objectUnderCursor;
 
     public static void Initialize(int width, int height, Rectangle screenRect, GraphicsDevice graphics)
@@ -28,14 +30,20 @@ public static class SimulationManager
         screenBounds = screenRect;
         canvas = new Texture2D(graphics, width, height);
 
-        WorldMatrix.Initialize(width, height);
+        WorldMatrix.Initialize();
     }
 
     public static void Update(GameTime time)
     {
         HandleInput();
 
-        WorldMatrix.StepAll(time.GetElapsedSeconds());
+        WorldMatrix.StepDirtyChunks(time.GetElapsedSeconds());
+
+        if(Settings.RANDOM_TICKS_ENABLED)
+            WorldMatrix.StepRandomTicks(time.GetElapsedSeconds());
+        
+        if (Settings.DRAW_DIRTY_RECTS && Settings.USE_CHUNKS)
+            dirtyRects = WorldMatrix.GatherDirtyRects();
         
         Render();
     }
@@ -44,63 +52,61 @@ public static class SimulationManager
     {
         MouseState mState = Mouse.GetState();
         KeyboardStateExtended kState = KeyboardExtended.GetState();
+        
+        Point mouseWorldPos = Game1.MainCamera.ScreenToWorld(mState.Position.X, mState.Position.Y).ToPoint();
+        
+        if(mState.LeftButton == ButtonState.Pressed && screenBounds.Contains(mState.Position))
+            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new SandElementDefinition(mouseWorldPos.X, mouseWorldPos.Y));
             
-        Point mousePos = mState.Position;
-        if(mState.LeftButton == ButtonState.Pressed && screenBounds.Contains(mousePos))
-            WorldMatrix.SetElementAt(mousePos.X, mousePos.Y, new SandElementDefinition(mousePos.X, mousePos.Y));
+        if(mState.RightButton == ButtonState.Pressed && screenBounds.Contains(mState.Position))
+            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new StoneElementDefinition(mouseWorldPos.X, mouseWorldPos.Y));
             
-        if(mState.RightButton == ButtonState.Pressed && screenBounds.Contains(mousePos))
-            WorldMatrix.SetElementAt(mousePos.X, mousePos.Y, new StoneElementDefinition(mousePos.X, mousePos.Y));
-            
-        if(mState.MiddleButton == ButtonState.Pressed && screenBounds.Contains(mousePos))
-            WorldMatrix.SetElementAt(mousePos.X, mousePos.Y, new WaterElementDefinition(mousePos.X, mousePos.Y));
+        if(mState.MiddleButton == ButtonState.Pressed && screenBounds.Contains(mState.Position))
+            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new WaterElementDefinition(mouseWorldPos.X, mouseWorldPos.Y));
 
-        if (kState.WasKeyJustDown(Keys.X))
+        if (kState.WasKeyJustUp(Keys.X))
         {
             isSnowingToggled = !isSnowingToggled;
         }
 
-        if (kState.IsKeyDown(Keys.D))
+        if (kState.WasKeyJustUp(Keys.C))
         {
-            for (int x = 0; x < WorldMatrix.Chunks.GetLength(0); x++)
-            {
-                for (int y = 0; y < WorldMatrix.Chunks.GetLength(1); y++)
-                {
-                    DirtyChunk chunk = WorldMatrix.Chunks[x, y];
-                    chunk.SetEverythingDirty(x * Settings.CHUNK_SIZE, y * Settings.CHUNK_SIZE);
-                }
-            }
+            WorldMatrix.SetEveryChunkClean();
         }
 
-        if (kState.IsKeyDown(Keys.S))
+        if (kState.WasKeyJustUp(Keys.V))
         {
-            for (int x = 0; x < WorldMatrix.Chunks.GetLength(0); x++)
-            {
-                for (int y = 0; y < WorldMatrix.Chunks.GetLength(1); y++)
-                {
-                    DirtyChunk chunk = WorldMatrix.Chunks[x, y];
-                    chunk.SetEverythingClean();
-                }
-            }
+            WorldMatrix.SetEveryChunkDirty();
+        }
+
+        if (kState.WasKeyJustUp(Keys.Multiply))
+        {
+            Game1.Instance.ChangeTargetFps(5);
+        }
+
+        if (kState.WasKeyJustUp(Keys.Divide))
+        {
+            Game1.Instance.ChangeTargetFps(-5);
         }
 
         if (isSnowingToggled)
         {
             for (int i = 0; i < Settings.SNOW_PER_SECOND; i++)
             {
-                int x = RandomFactory.SeedlessRandom.Next(WorldMatrix.WorldWidth - 1);
-                int y = RandomFactory.SeedlessRandom.Next(WorldMatrix.WorldHeight - 1);
+                int x = RandomFactory.SeedlessRandom.Next(Settings.WORLD_WIDTH - 1);
+                int y = RandomFactory.SeedlessRandom.Next(Settings.WORLD_HEIGHT - 1);
                 
-                WorldMatrix.SetElementAt(x, y, new StoneElementDefinition(x, y));
+                WorldMatrix.SetElementAt(x, y, new WaterElementDefinition(x, y));
             }
         }
 
         if (Settings.DRAW_CURSOR_POS)
         {
-            if (screenBounds.Contains(mousePos))
+            cursorScreenPos = mState.Position.ToVector2();
+            cursorWorldPos = mouseWorldPos.ToVector2();
+            if (screenBounds.Contains(cursorWorldPos))
             {
-                cursorPos = mousePos.ToVector2();
-                objectUnderCursor = WorldMatrix.Matrix[mousePos.X + mousePos.Y * Settings.WORLD_WIDTH].ToString();
+                objectUnderCursor = WorldMatrix.GetElementAt(mouseWorldPos.X + mouseWorldPos.Y * Settings.WORLD_WIDTH).ToString();
             }
             else
             {
@@ -111,41 +117,44 @@ public static class SimulationManager
 
     private static void Render()
     {
-        canvas.SetData(WorldMatrix.PixelsToDraw, 0, WorldMatrix.WorldWidth * WorldMatrix.WorldHeight);
+        canvas.SetData(WorldMatrix.PixelsToDraw, 0, Settings.WORLD_WIDTH * Settings.WORLD_HEIGHT);
     }
 
-    public static void Draw(SpriteBatch spriteBatch)
+    public static void DrawWorld(SpriteBatch spriteBatch)
     {
-        spriteBatch.Draw(canvas, new Rectangle(0, 0, WorldMatrix.WorldWidth, WorldMatrix.WorldHeight), Color.White);
-
         if (Settings.USE_CHUNKS && Settings.DRAW_CHUNK_BORDERS)
         {
-            for (int x = 0; x < WorldMatrix.Chunks.GetLength(0); x++)
+            for (int x = 0; x < Settings.CHUNK_COUNT_X; x++)
             {
-                for (int y = 0; y < WorldMatrix.Chunks.GetLength(1); y++)
+                for (int y = 0; y < Settings.CHUNK_COUNT_Y; y++)
                 {
                     // Draw chunk borders
-                    Color color = WorldMatrix.Chunks[x, y].LastFrameWasDirty ? Color.Orange : Color.White;
+                    Color color = WorldMatrix.IsChunkCurrentlyDirty(x, y) ? Color.Orange : Color.DarkGray;
                     spriteBatch.DrawRectangle(x * Settings.CHUNK_SIZE, y * Settings.CHUNK_SIZE, Settings.CHUNK_SIZE, Settings.CHUNK_SIZE, color, 0.5f);
                 }
             }
         }
+        
+        spriteBatch.Draw(canvas, new Rectangle(0, 0, Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT), Color.White);
 
         if (Settings.USE_CHUNKS && Settings.DRAW_DIRTY_RECTS)
         {
-            foreach (RectangleF dirtyRect in WorldMatrix.DirtyRects)
+            foreach (RectangleF dirtyRect in dirtyRects)
             {
                 // Draw dirty rects
                 spriteBatch.DrawRectangle(dirtyRect, Color.Red, 1f);
             }
         }
+    }
 
+    public static void DrawUi(SpriteBatch spriteBatch)
+    {
         if (Settings.DRAW_CURSOR_POS)
         {
             // Draw mouse pos
-            string cPos = cursorPos.ToString();
-            spriteBatch.DrawRectangle(cursorPos + new Vector2(15, 5), new Size2(100, 1), Color.Blue, 8f);
-            spriteBatch.DrawString(Game1.DebugFont, cPos, cursorPos + new Vector2(20, 0), Color.Red);
+            string cPos = cursorWorldPos.ToString();
+            spriteBatch.DrawRectangle(cursorScreenPos + new Vector2(15, 5), new Size2(100, 1), Color.Blue, 8f);
+            spriteBatch.DrawString(Game1.DebugFont, cPos, cursorScreenPos + new Vector2(20, 0), Color.Red);
             
             // Draw object under the cursor
             spriteBatch.DrawRectangle(new Vector2(0, 0), new Size2(Settings.WORLD_WIDTH, 1), Color.Blue, 20f);
