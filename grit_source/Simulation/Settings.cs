@@ -42,9 +42,9 @@ public static class Settings
 
     #region Debug draw settings
 
-    public const bool DRAW_CHUNK_BORDERS = true;
-    public const bool DRAW_CURSOR_POS = true;
-    public const bool DRAW_DIRTY_RECTS = true;
+    public const bool DRAW_CHUNK_BORDERS = false;
+    public const bool DRAW_CURSOR_POS = false;
+    public const bool DRAW_DIRTY_RECTS = false;
 
     #endregion
 
