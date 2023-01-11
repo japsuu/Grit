@@ -4,17 +4,24 @@ using System;
 namespace Grit.Simulation.World;
 
 /// <summary>
-/// Unsafe representation of a chunk, used to keep track of dirty rects.
+/// Contains a single Dirty Rect.
 /// </summary>
 public class DirtyChunk
 {
-    
-    // Values constructed at the end of a frame from the dirty changes.
+
+    #region PUBLIC FIELDS
+
+    // Dirty rect values, constructed at the end of a frame from the dirty changes.
     public bool IsCurrentlyDirty;
-    public int ConstructedMinX;
-    public int ConstructedMinY;
-    public int ConstructedMaxX;
-    public int ConstructedMaxY;
+    public int DirtyRectMinX;
+    public int DirtyRectMinY;
+    public int DirtyRectMaxX;
+    public int DirtyRectMaxY;
+
+    #endregion
+
+
+    #region PRIVATE FIELDS
 
     // Internal values used to determine dirty changes.
     private bool internalIsDirty;
@@ -25,6 +32,11 @@ public class DirtyChunk
     
     private readonly int chunkPosX;
     private readonly int chunkPosY;
+
+    #endregion
+
+    
+    #region PUBLIC METHODS
 
     public DirtyChunk(int chunkPosX, int chunkPosY)
     {
@@ -53,18 +65,9 @@ public class DirtyChunk
     /// </summary>
     public void ConstructDirtyRectangle()
     {
-        // Write the public values
-        IsCurrentlyDirty = internalIsDirty;
-        ConstructedMinX = internalMinX;
-        ConstructedMinY = internalMinY;
-        ConstructedMaxX = internalMaxX;
-        ConstructedMaxY = internalMaxY;
+        ConstructDirtyRect();
         
-        internalIsDirty = false;
-        internalMinX = int.MaxValue;
-        internalMinY = int.MaxValue;
-        internalMaxX = int.MinValue;
-        internalMaxY = int.MinValue;
+        CleanInternally();
     }
 
     public void SetEverythingDirty()
@@ -73,31 +76,41 @@ public class DirtyChunk
         internalIsDirty = true;
         internalMinX = chunkPosX;
         internalMinY = chunkPosY;
-        internalMaxX = chunkPosX + Settings.CHUNK_SIZE - 1;
-        internalMaxY = chunkPosY + Settings.CHUNK_SIZE - 1;
+        internalMaxX = chunkPosX + Settings.WORLD_CHUNK_SIZE - 1;
+        internalMaxY = chunkPosY + Settings.WORLD_CHUNK_SIZE - 1;
         
-        // Propagate
-        IsCurrentlyDirty = internalIsDirty;
-        ConstructedMinX = internalMinX;
-        ConstructedMinY = internalMinY;
-        ConstructedMaxX = internalMaxX;
-        ConstructedMaxY = internalMaxY;
+        ConstructDirtyRect();
     }
 
     public void SetEverythingClean()
     {
-        // Clean internally
+        CleanInternally();
+        
+        ConstructDirtyRect();
+    }
+
+    #endregion
+
+    
+    #region PRIVATE METHODS
+
+    private void CleanInternally()
+    {
         internalIsDirty = false;
         internalMinX = int.MaxValue;
         internalMinY = int.MaxValue;
         internalMaxX = int.MinValue;
         internalMaxY = int.MinValue;
-        
-        // Propagate
-        IsCurrentlyDirty = internalIsDirty;
-        ConstructedMinX = internalMinX;
-        ConstructedMinY = internalMinY;
-        ConstructedMaxX = internalMaxX;
-        ConstructedMaxY = internalMaxY;
     }
+
+    private void ConstructDirtyRect()
+    {
+        IsCurrentlyDirty = internalIsDirty;
+        DirtyRectMinX = internalMinX;
+        DirtyRectMinY = internalMinY;
+        DirtyRectMaxX = internalMaxX;
+        DirtyRectMaxY = internalMaxY;
+    }
+
+    #endregion
 }

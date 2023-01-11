@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Diagnostics;
 using Grit.Simulation.Elements;
 using Grit.Simulation.Elements.ElementDefinitions;
 using Grit.Simulation.Elements.Movable;
@@ -11,39 +10,67 @@ namespace Grit.Simulation.World;
 
 public static class WorldMatrix
 {
-    // Public static because we don't want to pass an array reference every frame :)
-    public static Color[] PixelsToDraw;
+    #region PUBLIC FIELDS
+
+    /// <summary>
+    /// Pixels that get drawn to the screen at the end of the frame.
+    /// Public static because we don't want to pass an array reference every frame >:)
+    /// </summary>
+    public static Color[] PixelsToDraw { get; private set; }
+
+    public static bool IsChunkCurrentlyDirty(int chunkX, int chunkY) => dirtyChunks[chunkX, chunkY].IsCurrentlyDirty;
+
+    #endregion
+
     
-    private static int worldWidth;
-    private static int worldHeight;
+    #region PRIVATE FIELDS
+
+    /// <summary>
+    /// Flattened 2D-array of the world.
+    /// Get the element at [x, y] by [x + y * Width].
+    /// Flattened arrays are used here instead of 2D-arrays for performance reasons.
+    /// </summary>
+    private static ElementDefinition[] elementMatrix;
     
     /// <summary>
-    /// World. Get element at [x, y] by [x + y * Width].
-    /// TODO: Research whether 2D-array or flattened array has better performance.
+    /// All the chunks of the world.
+    /// Every chunk can contain a single dirty rectangle.
     /// </summary>
-    private static ElementDefinition[] matrix;
-    private static DirtyChunk[,] chunks;
+    private static DirtyChunk[,] dirtyChunks;
     
-    // All pixels that have been stepped already this frame.
-    private static BitArray steppedPixels;
+    /// <summary>
+    /// All cells that have been stepped already this frame.
+    /// </summary>
+    private static BitArray steppedCells;
 
-    // Debug dirty rectangles.
-    private static RectangleF[] dirtyRects;
-
+    /// <summary>
+    /// Array of dirty rectangles, used only for debugging.
+    /// </summary>
+    private static RectangleF[] debugDirtyRects;
+    
+    // Directly pulled from settings, but cached here to make the code a bit tidier.
+    private static int worldWidth;
+    private static int worldHeight;
     private static int chunkCountX;
     private static int chunkCountY;
     
-    // Shuffled array of access indexes for the world's x-axis. Prevents visually consistent updating of the world.
-    private static int[] shuffledXIndexes;
-
-    public static bool IsChunkCurrentlyDirty(int chunkX, int chunkY) => chunks[chunkX, chunkY].IsCurrentlyDirty;
+    /// <summary>
+    /// Shuffled array of access indexes for the element matrix.
+    /// Prevents visually consistent updating of the world.
+    /// </summary>
+    private static int[] shuffledIndexes;
     
-    private static bool InsideMatrixBounds(int x, int y) => x >= 0 && y >= 0 && x < worldWidth && y < worldHeight;
+    private static bool IsPositionInsideMatrix(int x, int y) => x >= 0 && y >= 0 && x < worldWidth && y < worldHeight;
+
+    #endregion
+
+
+    #region PUBLIC METHODS
 
     public static void Initialize()
     {
-        if (Settings.USE_CHUNKS && (worldWidth % Settings.CHUNK_SIZE != 0 || worldHeight % Settings.CHUNK_SIZE != 0))
-            throw new Exception($"World size is not dividable by ChunkSize {Settings.CHUNK_SIZE}!");
+        if (Settings.USE_WORLD_CHUNKING && (worldWidth % Settings.WORLD_CHUNK_SIZE != 0 || worldHeight % Settings.WORLD_CHUNK_SIZE != 0))
+            throw new Exception($"World size is not dividable by ChunkSize {Settings.WORLD_CHUNK_SIZE}!");
 
         worldWidth = Settings.WORLD_WIDTH;
         worldHeight = Settings.WORLD_HEIGHT;
@@ -52,173 +79,162 @@ public static class WorldMatrix
         chunkCountY = Settings.CHUNK_COUNT_Y;
         
         PixelsToDraw = new Color[worldWidth * worldWidth];
-        steppedPixels = new BitArray(worldWidth * worldHeight);
+        steppedCells = new BitArray(worldWidth * worldHeight);
         
-        if(Settings.USE_CHUNKS)
+        if(Settings.USE_WORLD_CHUNKING)
             InitializeChunks();
         
         InitializeWorld();
         
-        InitializeXIndexes();
+        InitializeShuffledIndexes();
         
-        ShuffleXIndexes();
+        ShuffleIndexArray();
     }
 
-    private static void InitializeChunks()
-    {
-        chunks = new DirtyChunk[chunkCountX, chunkCountY];
-
-        if (Settings.DRAW_DIRTY_RECTS)
-        {
-            dirtyRects = new RectangleF[chunkCountX * chunkCountY];
-        }
-        
-        for (int x = 0; x < chunkCountX; x++)
-        {
-            for (int y = 0; y < chunkCountY; y++)
-            {
-                chunks[x, y] = new DirtyChunk(x, y);
-            }
-        }
-    }
-
-    private static void InitializeWorld()
-    {
-        matrix = new ElementDefinition[worldWidth * worldHeight];
-        
-        for (int x = 0; x < worldWidth; x++)
-        {
-            for (int y = 0; y < worldHeight; y++)
-            {
-                int index = x + y * worldWidth;
-        
-                matrix[index] = new AirElementDefinition(x, y);
-                PixelsToDraw[index] = matrix[index].GetColor();
-
-                if (y == Settings.WORLD_HEIGHT - 50)
-                {
-                    matrix[index] = new StoneElementDefinition(x, y);
-                    PixelsToDraw[index] = matrix[index].GetColor();
-                }
-            }
-        }
-    }
-
+    /// <summary>
+    /// Steps through all dirty chunks and through their dirty rects, updating required cells.
+    /// </summary>
     public static void StepDirtyChunks(float deltaTime)
     {
-        steppedPixels.SetAll(false);
+        // Reset the stepped cells.
+        steppedCells.SetAll(false);
         
-        if (Settings.USE_CHUNKS)
+        if (Settings.USE_WORLD_CHUNKING)
         {
             // Loop all chunks (left to right, bottom to top)
             for (int chunkY = chunkCountY - 1; chunkY >= 0; chunkY--)
             {
-                //TODO: Can be randomized with shuffled X-access indices. Not yet needed though.
+                // NOTE: Can later be randomized with shuffled X-access indices, if needed.
                 for (int chunkX = 0; chunkX < chunkCountX; chunkX++)
                 {
-                    // If the chunk is dirty
-                    if (chunks[chunkX, chunkY].IsCurrentlyDirty)
+                    if (dirtyChunks[chunkX, chunkY].IsCurrentlyDirty)
                     {
-                        // Loop the dirty rect (left to right, bottom to top)
-                        for (int dirtyRectY = chunks[chunkX, chunkY].ConstructedMinY; dirtyRectY <= chunks[chunkX, chunkY].ConstructedMaxY; dirtyRectY++)
+                        // Loop the dirty rect bottom to top
+                        for (int y = dirtyChunks[chunkX, chunkY].DirtyRectMinY; y <= dirtyChunks[chunkX, chunkY].DirtyRectMaxY; y++)
                         {
-                            // We randomize the X update order, to not cause visual consistencies.
-                            int dirtyRectWidth = chunks[chunkX, chunkY].ConstructedMaxX - chunks[chunkX, chunkY].ConstructedMinX + 1;
+                            // Generate a random X access pattern, to avoid visual consistencies.
+                            int dirtyRectWidth = dirtyChunks[chunkX, chunkY].DirtyRectMaxX - dirtyChunks[chunkX, chunkY].DirtyRectMinX + 1;
                             RegenerateAndShuffleXIndexes(dirtyRectWidth);
                             
+                            // Loop the dirty rect in random X update order.
                             // If we ever need to go back to consistent updating, use this -> for (int dirtyRectX = chunks[chunkX, chunkY].ConstructedMinX; dirtyRectX <= chunks[chunkX, chunkY].ConstructedMaxX; dirtyRectX++)
                             for (int i = 0; i < dirtyRectWidth; i++)
                             {
-                                int dirtyRectX = chunks[chunkX, chunkY].ConstructedMinX + shuffledXIndexes[i];
+                                // Calculate x position from the shuffled access index.
+                                int x = dirtyChunks[chunkX, chunkY].DirtyRectMinX + shuffledIndexes[i];
                                 
-                                //WARN: Remove when update logic finished
-                                if (!InsideMatrixBounds(dirtyRectX, dirtyRectY)) continue;
-                                
-                                if (steppedPixels[dirtyRectX + dirtyRectY * Settings.WORLD_WIDTH])
+                                // Skip if this cell has been stepped already.
+                                if (steppedCells[x + y * Settings.WORLD_WIDTH])
                                     continue;
                                 
-                                //Debug.WriteLine($"{dirtyRectX},{dirtyRectY} looped");
+                                // Skip if position outside the matrix. Happens when a cell at the edge of the matrix gets dirtied.
+                                if (!IsPositionInsideMatrix(x, y))
+                                    continue;
                                 
-                                (int newX, int newY) = HandleStep(dirtyRectX, dirtyRectY, deltaTime);
+                                // Finally, handle the step for this cell.
+                                (int newX, int newY) = HandleStep(x, y, deltaTime);
                                 
-                                steppedPixels[newX + newY * Settings.WORLD_WIDTH] = true;
+                                // Set the cell's new position as stepped, so we won't visit it again causing multiple updates per frame.
+                                steppedCells[newX + newY * Settings.WORLD_WIDTH] = true;
                             }
                         }
                     }
                     
-                    chunks[chunkX, chunkY].ConstructDirtyRectangle();
+                    // We're done with this chunk, tell it to construct their dirty rect.
+                    dirtyChunks[chunkX, chunkY].ConstructDirtyRectangle();
                 }
             }
         }
         else
         {
-            // Loop the world (left to right, bottom to top)
+            // Loop the world (random X access, bottom to top)
             for (int y = worldHeight - 1; y >= 0; y--)
             {
-                foreach (int x in shuffledXIndexes)
+                foreach (int x in shuffledIndexes)
                 {
-                    if(steppedPixels[x + y * Settings.WORLD_WIDTH])
+                    if(steppedCells[x + y * Settings.WORLD_WIDTH])
                         continue;
                     
                     (int newX, int newY) = HandleStep(x, y, deltaTime);
 
-                    steppedPixels[newX + newY * Settings.WORLD_WIDTH] = true;
+                    steppedCells[newX + newY * Settings.WORLD_WIDTH] = true;
                 }
         
-                ShuffleXIndexes();
+                ShuffleIndexArray();
             }
         }
     }
 
+    /// <summary>
+    /// Selects random cells from the world, and updates them, ignoring all dirtying logic.
+    /// Used for infrequent things, like interactions with neighbouring cells; for example, melting.
+    /// </summary>
     public static void StepRandomTicks(float deltaTime)
     {
         for (int i = 0; i < Settings.RANDOM_TICKS_PER_FRAME; i++)
         {
             (int x, int y) = RandomFactory.RandomPosInWorld();
             
-            if (steppedPixels[x + y * Settings.WORLD_WIDTH])
+            if (steppedCells[x + y * Settings.WORLD_WIDTH])
                 continue;
             
-            // No need to manually set the random pixel dirty, since we don't want consequent updates to happen.
-            // If HandleStep creates a new pixel/causes movement, dirtying will be handled internally.
+            // No need to manually set the random cell dirty, since we don't want consequent updates to happen.
+            // If HandleStep creates a new cell/causes movement, dirtying will be handled internally.
             (int newX, int newY) = HandleStep(x, y, deltaTime);
-                                
-            steppedPixels[newX + newY * Settings.WORLD_WIDTH] = true;
+            
+            steppedCells[newX + newY * Settings.WORLD_WIDTH] = true;
         }
     }
 
-    public static RectangleF[] GatherDirtyRects()
+    /// <summary>
+    /// Construct all dirty rectangles.
+    /// </summary>
+    /// <returns>Dirty rects for debug drawing.</returns>
+    public static RectangleF[] GetDebugDirtyRects()
     {
         for (int y = 0; y < chunkCountY; y++)
         {
             for (int x = 0; x < chunkCountX; x++)
             {
                 RectangleF constructedDirtyRect = new(
-                    chunks[x, y].ConstructedMinX, 
-                    chunks[x, y].ConstructedMinY, 
-                    chunks[x, y].ConstructedMaxX - chunks[x, y].ConstructedMinX + 1,
-                    chunks[x, y].ConstructedMaxY - chunks[x, y].ConstructedMinY + 1);
+                    dirtyChunks[x, y].DirtyRectMinX, 
+                    dirtyChunks[x, y].DirtyRectMinY, 
+                    dirtyChunks[x, y].DirtyRectMaxX - dirtyChunks[x, y].DirtyRectMinX + 1,
+                    dirtyChunks[x, y].DirtyRectMaxY - dirtyChunks[x, y].DirtyRectMinY + 1);
                         
-                dirtyRects[x + y * chunkCountY] = constructedDirtyRect;
+                debugDirtyRects[x + y * chunkCountY] = constructedDirtyRect;
             }
         }
 
-        return dirtyRects;
+        return debugDirtyRects;
     }
 
-    public static void SetElementAt(int setX, int setY, ElementDefinition elementDefinition)
+    /// <summary>
+    /// Designed to be used externally, do not waste internal function calls on this!
+    /// </summary>
+    public static ElementDefinition GetElementAt(int index)
+    {
+        return elementMatrix[index];
+    }
+
+    /// <summary>
+    /// Places the given element in to the given position in the matrix.
+    /// </summary>
+    public static void SetElementAt(int setX, int setY, ElementDefinition newElement)
     {
         int index = setX + setY * worldWidth;
-        //WARN: Remove when testing done TODO
-        if(elementDefinition.Type == matrix[index].Type) return;
         
-        matrix[index] = elementDefinition;
-        PixelsToDraw[index] = elementDefinition.GetColor();
+        // Skip if we are trying to replace an element with itself.
+        if(newElement.Type == elementMatrix[index].Type)
+            return;
+        
+        elementMatrix[index] = newElement;
+        PixelsToDraw[index] = newElement.GetColor();
 
-        if (Settings.USE_CHUNKS)
+        // Updating the dirty chunks.
+        if (Settings.USE_WORLD_CHUNKING)
         {
-            // Dirty the set element and all 8 surrounding elements
-            //WARN: TODO: Only set dirty the 4 "corner" cells, no need to dirty every cell.
+            // Dirty the set element and all 8 surrounding elements.
             int minX = Math.Max(0, setX - 1);
             int minY = Math.Max(0, setY - 1);
             int maxX = Math.Min(Settings.WORLD_WIDTH - 1, setX + 1);
@@ -227,31 +243,110 @@ public static class WorldMatrix
             {
                 for (int x = minX; x < maxX + 1; x++)
                 {
-                    int chunkX = x / Settings.CHUNK_SIZE;
-                    int chunkY = y / Settings.CHUNK_SIZE;
-                    chunks[chunkX, chunkY].SetDirtyAt(x, y);
+                    int chunkX = x / Settings.WORLD_CHUNK_SIZE;
+                    int chunkY = y / Settings.WORLD_CHUNK_SIZE;
+                    dirtyChunks[chunkX, chunkY].SetDirtyAt(x, y);
+                }
+            }
+        }
+
+    }
+
+    /// <summary>
+    /// Dirties every chunk forcing all cells to update next frame.
+    /// </summary>
+    public static void SetEveryChunkDirty()
+    {
+        for (int y = 0; y < chunkCountY; y++)
+        {
+            for (int x = 0; x < chunkCountX; x++)
+            {
+                dirtyChunks[x, y].SetEverythingDirty();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Cleans every chunk disabling all updates for the next frame.
+    /// </summary>
+    public static void SetEveryChunkClean()
+    {
+        for (int y = 0; y < chunkCountY; y++)
+        {
+            for (int x = 0; x < chunkCountX; x++)
+            {
+                dirtyChunks[x, y].SetEverythingClean();
+            }
+        }
+    }
+
+    #endregion
+
+    
+    #region PRIVATE METHODS
+
+    private static void InitializeChunks()
+    {
+        dirtyChunks = new DirtyChunk[chunkCountX, chunkCountY];
+
+        if (Settings.DRAW_DIRTY_RECTS)
+        {
+            debugDirtyRects = new RectangleF[chunkCountX * chunkCountY];
+        }
+        
+        for (int x = 0; x < chunkCountX; x++)
+        {
+            for (int y = 0; y < chunkCountY; y++)
+            {
+                dirtyChunks[x, y] = new DirtyChunk(x, y);
+            }
+        }
+    }
+
+    private static void InitializeWorld()
+    {
+        elementMatrix = new ElementDefinition[worldWidth * worldHeight];
+        
+        for (int x = 0; x < worldWidth; x++)
+        {
+            for (int y = 0; y < worldHeight; y++)
+            {
+                int index = x + y * worldWidth;
+        
+                elementMatrix[index] = new AirElementDefinition(x, y);
+                PixelsToDraw[index] = elementMatrix[index].GetColor();
+
+                // Generate some stone at the bottom of the world
+                if (y >= Settings.WORLD_HEIGHT - 50)
+                {
+                    elementMatrix[index] = new StoneElementDefinition(x, y);
+                    PixelsToDraw[index] = elementMatrix[index].GetColor();
                 }
             }
         }
     }
 
+    /// <summary>
+    /// Swaps two elements with each other, while dirtying a maximum of 14 cells.
+    /// </summary>
+    /// <exception cref="Exception">pos1 == pos2</exception>
     private static void SwapElementsAt(int x1, int y1, int x2, int y2)
     {
-        //TODO: Remove when update logic is finished.
+        // Do not allow an cell to swap itself.
         if (x1 == x2 && y1 == y2)
         {
             throw new Exception("Tried to swap an element with itself.");
         }
         
+        // Swap operations
         int index1 = x1 + y1 * worldWidth;
         int index2 = x2 + y2 * worldWidth;
-        (matrix[index2], matrix[index1]) = (matrix[index1], matrix[index2]);
+        (elementMatrix[index2], elementMatrix[index1]) = (elementMatrix[index1], elementMatrix[index2]);
         (PixelsToDraw[x2 + y2 * worldWidth], PixelsToDraw[x1 + y1 * worldWidth]) = (PixelsToDraw[x1 + y1 * worldWidth], PixelsToDraw[x2 + y2 * worldWidth]);
         
-        if (Settings.USE_CHUNKS)
+        if (Settings.USE_WORLD_CHUNKING)
         {
-            // Dirty the set elements and all (max 14, when diagonal swap) surrounding elements.
-            //WARN: TODO: Only set dirty the 4 "corner" cells, no need to dirty every cell.
+            // Dirty the set elements and all (max 12, when diagonal swap) surrounding elements.
             int minX = Math.Max(0, Math.Min(x1 - 1, x2 - 1));
             int minY = Math.Max(0, Math.Min(y1 - 1, y2 - 1));
             int maxX = Math.Min(Settings.WORLD_WIDTH - 1, Math.Max(x1 + 1, x2 + 1));
@@ -260,20 +355,12 @@ public static class WorldMatrix
             {
                 for (int x = minX; x < maxX + 1; x++)
                 {
-                    int chunkX = x / Settings.CHUNK_SIZE;
-                    int chunkY = y / Settings.CHUNK_SIZE;
-                    chunks[chunkX, chunkY].SetDirtyAt(x, y);
+                    int chunkX = x / Settings.WORLD_CHUNK_SIZE;
+                    int chunkY = y / Settings.WORLD_CHUNK_SIZE;
+                    dirtyChunks[chunkX, chunkY].SetDirtyAt(x, y);
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Designed to be used externally, do not waste internal function calls on this!
-    /// </summary>
-    public static ElementDefinition GetElementAt(int index)
-    {
-        return matrix[index];
     }
 
     /// <summary>
@@ -290,7 +377,7 @@ public static class WorldMatrix
         // NOTE: The function could apply the required changes itself, or even return the new position and handle the applying elsewhere.
         // NOTE: I'm not sure how this would affect the performance of the program. 
         
-        ElementDefinition elementDefinition = matrix[x + y * worldWidth];
+        ElementDefinition elementDefinition = elementMatrix[x + y * worldWidth];
         int newX = x;
         int newY = y;
 
@@ -313,7 +400,7 @@ public static class WorldMatrix
                 }
 
                 // Below cell.
-                if (matrix[x + belowY * worldWidth].GetForm() != ElementForm.Solid)
+                if (elementMatrix[x + belowY * worldWidth].GetForm() != ElementForm.Solid)
                 {
                     SwapElementsAt(x, y, x, belowY);
                     newY = belowY;
@@ -326,7 +413,7 @@ public static class WorldMatrix
                 {
                     // Left bottom cell.
                     int leftX = x - 1;
-                    if (leftX > -1 && matrix[leftX + belowY * worldWidth].GetForm() != ElementForm.Solid)
+                    if (leftX > -1 && elementMatrix[leftX + belowY * worldWidth].GetForm() != ElementForm.Solid)
                     {
                         SwapElementsAt(x, y, leftX, belowY);
                         newX = leftX;
@@ -336,7 +423,7 @@ public static class WorldMatrix
 
                     // Right bottom cell.
                     int rightX = x + 1;
-                    if (rightX < Settings.WORLD_WIDTH && matrix[rightX + belowY * worldWidth].GetForm() != ElementForm.Solid)
+                    if (rightX < Settings.WORLD_WIDTH && elementMatrix[rightX + belowY * worldWidth].GetForm() != ElementForm.Solid)
                     {
                         SwapElementsAt(x, y, rightX, belowY);
                         newX = rightX;
@@ -348,7 +435,7 @@ public static class WorldMatrix
                 {
                     // Right bottom cell.
                     int rightX = x + 1;
-                    if (rightX < Settings.WORLD_WIDTH && matrix[rightX + belowY * worldWidth].GetForm() != ElementForm.Solid)
+                    if (rightX < Settings.WORLD_WIDTH && elementMatrix[rightX + belowY * worldWidth].GetForm() != ElementForm.Solid)
                     {
                         SwapElementsAt(x, y, rightX, belowY);
                         newX = rightX;
@@ -358,7 +445,7 @@ public static class WorldMatrix
                     
                     // Left bottom cell.
                     int leftX = x - 1;
-                    if (leftX > -1 && matrix[leftX + belowY * worldWidth].GetForm() != ElementForm.Solid)
+                    if (leftX > -1 && elementMatrix[leftX + belowY * worldWidth].GetForm() != ElementForm.Solid)
                     {
                         SwapElementsAt(x, y, leftX, belowY);
                         newX = leftX;
@@ -390,7 +477,7 @@ public static class WorldMatrix
                 }
 
                 // Below cell.
-                if (matrix[x + belowY * worldWidth].GetForm() == ElementForm.Gas)
+                if (elementMatrix[x + belowY * worldWidth].GetForm() == ElementForm.Gas)
                 {
                     SwapElementsAt(x, y, x, belowY);
                     newY = belowY;
@@ -402,7 +489,7 @@ public static class WorldMatrix
                 if (prioritizeLeft)
                 {
                     // Left bottom cell.
-                    if (leftX > -1 && matrix[leftX + belowY * worldWidth].GetForm() == ElementForm.Gas)
+                    if (leftX > -1 && elementMatrix[leftX + belowY * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, leftX, belowY);
                         newX = leftX;
@@ -411,7 +498,7 @@ public static class WorldMatrix
                     }
                     
                     // Right bottom cell.
-                    if (rightX < Settings.WORLD_WIDTH && matrix[rightX + belowY * worldWidth].GetForm() == ElementForm.Gas)
+                    if (rightX < Settings.WORLD_WIDTH && elementMatrix[rightX + belowY * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, rightX, belowY);
                         newX = rightX;
@@ -422,7 +509,7 @@ public static class WorldMatrix
                 else
                 {
                     // Right bottom cell.
-                    if (rightX < Settings.WORLD_WIDTH && matrix[rightX + belowY * worldWidth].GetForm() == ElementForm.Gas)
+                    if (rightX < Settings.WORLD_WIDTH && elementMatrix[rightX + belowY * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, rightX, belowY);
                         newX = rightX;
@@ -431,7 +518,7 @@ public static class WorldMatrix
                     }
                     
                     // Left bottom cell.
-                    if (leftX > -1 && matrix[leftX + belowY * worldWidth].GetForm() == ElementForm.Gas)
+                    if (leftX > -1 && elementMatrix[leftX + belowY * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, leftX, belowY);
                         newX = leftX;
@@ -443,7 +530,7 @@ public static class WorldMatrix
                 if (prioritizeLeft)
                 {
                     // Left cell.
-                    if (leftX > -1 && matrix[leftX + y * worldWidth].GetForm() == ElementForm.Gas)
+                    if (leftX > -1 && elementMatrix[leftX + y * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, leftX, y);
                         newX = leftX;
@@ -451,7 +538,7 @@ public static class WorldMatrix
                     }
                     
                     // Right cell.
-                    if (rightX < Settings.WORLD_WIDTH && matrix[rightX + y * worldWidth].GetForm() == ElementForm.Gas)
+                    if (rightX < Settings.WORLD_WIDTH && elementMatrix[rightX + y * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, rightX, y);
                         newX = rightX;
@@ -461,7 +548,7 @@ public static class WorldMatrix
                 else
                 {
                     // Right cell.
-                    if (rightX < Settings.WORLD_WIDTH && matrix[rightX + y * worldWidth].GetForm() == ElementForm.Gas)
+                    if (rightX < Settings.WORLD_WIDTH && elementMatrix[rightX + y * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, rightX, y);
                         newX = rightX;
@@ -469,7 +556,7 @@ public static class WorldMatrix
                     }
                     
                     // Left cell.
-                    if (leftX > -1 && matrix[leftX + y * worldWidth].GetForm() == ElementForm.Gas)
+                    if (leftX > -1 && elementMatrix[leftX + y * worldWidth].GetForm() == ElementForm.Gas)
                     {
                         SwapElementsAt(x, y, leftX, y);
                         newX = leftX;
@@ -488,46 +575,48 @@ public static class WorldMatrix
         return (newX, newY);
     }
 
-    private static void InitializeXIndexes()
+    /// <summary>
+    /// Initializes shuffledIndexes based on if we use chunking or not.
+    /// </summary>
+    private static void InitializeShuffledIndexes()
     {
-        if (Settings.USE_CHUNKS)
+        if (Settings.USE_WORLD_CHUNKING)
         {
-            shuffledXIndexes = new int[Settings.CHUNK_SIZE];
+            shuffledIndexes = new int[Settings.WORLD_CHUNK_SIZE];
         }
         else
         {
-            shuffledXIndexes = new int[worldWidth];
+            shuffledIndexes = new int[worldWidth];
         }
         
-        for (int i = 0; i < shuffledXIndexes.Length; i++)
+        for (int i = 0; i < shuffledIndexes.Length; i++)
         {
-            shuffledXIndexes[i] = i;
+            shuffledIndexes[i] = i;
         }
     }
     
     /// <summary>
     /// Shuffles the x-axis access indexes using the Fisher-Yates algorithm.
     /// </summary>
-    private static void ShuffleXIndexes()
+    private static void ShuffleIndexArray()
     {
-        int n = shuffledXIndexes.Length;
+        int n = shuffledIndexes.Length;
         while (n > 1)
         {
             int k = RandomFactory.SeedlessRandom.Next(n--);
-            (shuffledXIndexes[n], shuffledXIndexes[k]) = (shuffledXIndexes[k], shuffledXIndexes[n]);
+            (shuffledIndexes[n], shuffledIndexes[k]) = (shuffledIndexes[k], shuffledIndexes[n]);
         }
     }
     
     /// <summary>
     /// Shuffles the x-axis access indexes using the Fisher-Yates algorithm.
     /// </summary>
-    /// <returns>newLength</returns>
-    private static int RegenerateAndShuffleXIndexes(int newLength)
+    private static void RegenerateAndShuffleXIndexes(int newLength)
     {
         // Regenerate
         for (int i = 0; i < newLength; i++)
         {
-            shuffledXIndexes[i] = i;
+            shuffledIndexes[i] = i;
         }
         
         // Shuffle
@@ -535,31 +624,9 @@ public static class WorldMatrix
         while (n > 1)
         {
             int k = RandomFactory.SeedlessRandom.Next(n--);
-            (shuffledXIndexes[n], shuffledXIndexes[k]) = (shuffledXIndexes[k], shuffledXIndexes[n]);
-        }
-
-        return newLength;
-    }
-
-    public static void SetEveryChunkDirty()
-    {
-        for (int y = 0; y < chunkCountY; y++)
-        {
-            for (int x = 0; x < chunkCountX; x++)
-            {
-                chunks[x, y].SetEverythingDirty();
-            }
+            (shuffledIndexes[n], shuffledIndexes[k]) = (shuffledIndexes[k], shuffledIndexes[n]);
         }
     }
 
-    public static void SetEveryChunkClean()
-    {
-        for (int y = 0; y < chunkCountY; y++)
-        {
-            for (int x = 0; x < chunkCountX; x++)
-            {
-                chunks[x, y].SetEverythingClean();
-            }
-        }
-    }
+    #endregion
 }

@@ -21,11 +21,11 @@ public static class Settings
 
     #region Chunk settings
 
-    public const bool USE_CHUNKS = true;
-    public const int CHUNK_SIZE = 64;
+    public const bool USE_WORLD_CHUNKING = true;
+    public const int WORLD_CHUNK_SIZE = 64;
     
-    public const int CHUNK_COUNT_X = WORLD_WIDTH / CHUNK_SIZE;
-    public const int CHUNK_COUNT_Y = WORLD_HEIGHT / CHUNK_SIZE;
+    public const int CHUNK_COUNT_X = WORLD_WIDTH / WORLD_CHUNK_SIZE;
+    public const int CHUNK_COUNT_Y = WORLD_HEIGHT / WORLD_CHUNK_SIZE;
 
     #endregion
 
@@ -35,7 +35,7 @@ public static class Settings
     /// <summary>
     /// How many random pixels are created on the screen each frame.
     /// </summary>
-    public const int SNOW_PER_SECOND = 100;
+    public const int DEBUG_SNOW_PER_SECOND = 100;
 
     #endregion
 
