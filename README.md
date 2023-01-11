@@ -17,4 +17,4 @@ Built in MonoGame.
 
 ---
 
-Most of the interesting logic can be found [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/WorldMatrix.cs)(WorldMatrix.cs) and [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/DirtyChunk.cs)(DirtyChunk.cs)
+Most of the interesting logic can be found [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/WorldMatrix.cs) (WorldMatrix.cs) and [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/DirtyChunk.cs) (DirtyChunk.cs)
