@@ -1,6 +1,6 @@
 ﻿
+using Grit.Simulation.Elements;
 using Grit.Simulation.Elements.ElementDefinitions;
-using Grit.Simulation.Elements.Movable;
 using Grit.Simulation.World;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -130,7 +130,7 @@ public static class SimulationManager
             int x = RandomFactory.SeedlessRandom.Next(Settings.WORLD_WIDTH - 1);
             int y = RandomFactory.SeedlessRandom.Next(Settings.WORLD_HEIGHT - 1);
                 
-            WorldMatrix.SetElementAt(x, y, new WaterElementDefinition(x, y));
+            WorldMatrix.SetElementAt(x, y, new WaterElement(x, y));
         }
     }
 
@@ -142,13 +142,13 @@ public static class SimulationManager
         
         // Creating Elements with mouse input
         if(mState.LeftButton == ButtonState.Pressed && IsPositionInsideWorld(mouseWorldPos))
-            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new SandElementDefinition(mouseWorldPos.X, mouseWorldPos.Y));
+            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new SandElement(mouseWorldPos.X, mouseWorldPos.Y));
             
         if(mState.RightButton == ButtonState.Pressed && IsPositionInsideWorld(mouseWorldPos))
-            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new StoneElementDefinition(mouseWorldPos.X, mouseWorldPos.Y));
+            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new StoneElement(mouseWorldPos.X, mouseWorldPos.Y));
             
         if(mState.MiddleButton == ButtonState.Pressed && IsPositionInsideWorld(mouseWorldPos))
-            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new WaterElementDefinition(mouseWorldPos.X, mouseWorldPos.Y));
+            WorldMatrix.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new WaterElement(mouseWorldPos.X, mouseWorldPos.Y));
 
         
         // Keyboard input

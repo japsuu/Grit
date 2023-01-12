@@ -2,10 +2,8 @@
 
 namespace Grit.Simulation.Elements.ElementDefinitions;
 
-public class StoneElementDefinition : ElementDefinition
+public class StoneElement : Element
 {
-    public override ElementType Type => ElementType.Stone;
-
     protected override Color InitialColor => 
         RandomFactory.RandomColorFnl(
             new Color(90, 90, 90, 255), 
@@ -13,9 +11,10 @@ public class StoneElementDefinition : ElementDefinition
             StartX, 
             StartY);
 
+    public override ushort Id => 2;
     protected override ElementForm InitialForm => ElementForm.Solid;
 
-    public StoneElementDefinition(int x, int y) : base(x, y)
+    public StoneElement(int x, int y) : base(x, y)
     {
     }
 }

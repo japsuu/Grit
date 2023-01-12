@@ -1,5 +1,4 @@
-﻿using Microsoft.Xna.Framework;
-
+﻿
 namespace Grit.Simulation;
 
 public static class Settings
@@ -62,6 +61,11 @@ public static class Settings
     /// Whether or not <see cref="RANDOM_TICKS_PER_FRAME"/> selections are made and updated each frame.
     /// </summary>
     public const bool RANDOM_TICKS_ENABLED = true;
+
+    /// <summary>
+    /// Whether or not to split the world updating to multiple threads.
+    /// </summary>
+    public const bool MULTITHREADING_ENABLED = true;
     
     /// <summary>
     /// How many additional random pixels are selected and updated each frame?
