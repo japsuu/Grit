@@ -12,14 +12,30 @@ public abstract class Simulation
     public event Action<Color[]> TransferFramebuffer;
     public event Action<RectangleF[]> TransferDirtyRects;
 
+    protected abstract Color[] FrameBuffer { get; }
+
+    protected abstract RectangleF[] DirtyRects { get; }
+    
+    
+    protected Simulation()
+    {
+        
+    }
+
+    
+    public void FixedUpdate()
+    {
+        HandleUpdateSimulation();
+        
+        TransferDirtyRects?.Invoke(DirtyRects);
+                
+        TransferFramebuffer?.Invoke(FrameBuffer);
+    }
+
+
     /// <summary>
-    /// Pixels that get drawn to the screen at the end of the frame.
+    /// Returns the element at the specified index.
     /// </summary>
-    protected readonly Color[] FrameBuffer;
-
-    protected virtual RectangleF[] GetDirtyRects() => null;
-
-
     public abstract Element GetElementAt(int index);
 
     
@@ -33,22 +49,6 @@ public abstract class Simulation
     /// Places the given element to the given position in the matrix.
     /// </summary>
     public abstract void SetElementAt(int setX, int setY, Element newElement);
-    
-    
-    protected Simulation()
-    {
-        FrameBuffer = new Color[Settings.WORLD_WIDTH * Settings.WORLD_HEIGHT];
-    }
-
-    
-    public void FixedUpdate()
-    {
-        HandleUpdateSimulation();
-        
-        TransferDirtyRects?.Invoke(GetDirtyRects());
-                
-        TransferFramebuffer?.Invoke(FrameBuffer);
-    }
 
     
     protected abstract void HandleUpdateSimulation();

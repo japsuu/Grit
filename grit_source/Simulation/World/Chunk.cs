@@ -4,47 +4,40 @@ using System;
 namespace Grit.Simulation.World;
 
 /// <summary>
-/// Contains a single Dirty Rect.
+/// Contains a single double-buffered dirty rectangle.
 /// </summary>
-public class DirtyChunk
+public class Chunk
 {
-
-    #region PUBLIC FIELDS
-
     // Dirty rect values, constructed at the end of a frame from the dirty changes.
-    public volatile bool IsCurrentlyDirty;
-    public volatile int DirtyRectMinX;
-    public volatile int DirtyRectMinY;
-    public volatile int DirtyRectMaxX;
-    public volatile int DirtyRectMaxY;
+    public bool IsCurrentlyDirty;
+    public int DirtyRectMinX;
+    public int DirtyRectMinY;
+    public int DirtyRectMaxX;
+    public int DirtyRectMaxY;
     
-    public readonly int ChunkMatrixPosX;
-    public readonly int ChunkMatrixPosY;
+    public readonly Vector2Int ChunkWorldPos;
 
-    #endregion
-
-
-    #region PRIVATE FIELDS
-
+    
     // Internal values used to determine dirty changes.
-    private volatile bool internalIsDirty;
-    private volatile int internalMinX;
-    private volatile int internalMinY;
-    private volatile int internalMaxX;
-    private volatile int internalMaxY;
+    private bool internalIsDirty;
+    private int internalMinX;
+    private int internalMinY;
+    private int internalMaxX;
+    private int internalMaxY;
 
-    #endregion
+    private Simulation simulation;
 
-    
-    #region PUBLIC METHODS
 
-    public DirtyChunk(int chunkMatrixPosX, int chunkMatrixPosY)
+    public Chunk(Vector2Int chunkWorldPos, Simulation host)
     {
-        ChunkMatrixPosX = chunkMatrixPosX;
-        ChunkMatrixPosY = chunkMatrixPosY;
+        ChunkWorldPos = chunkWorldPos;
+        simulation = host;
         
         SetEverythingClean();
     }
+
+
+    #region PUBLIC METHODS
 
     /// <summary>
     /// Sets the given position as dirty inside this chunk.
@@ -74,8 +67,8 @@ public class DirtyChunk
     {
         // Dirty internally
         internalIsDirty = true;
-        internalMinX = ChunkMatrixPosX * Settings.WORLD_CHUNK_SIZE;
-        internalMinY = ChunkMatrixPosY * Settings.WORLD_CHUNK_SIZE;
+        internalMinX = ChunkWorldPos.x * Settings.WORLD_CHUNK_SIZE;
+        internalMinY = ChunkWorldPos.y * Settings.WORLD_CHUNK_SIZE;
         internalMaxX = internalMinX + Settings.WORLD_CHUNK_SIZE - 1;
         internalMaxY = internalMinY + Settings.WORLD_CHUNK_SIZE - 1;
         

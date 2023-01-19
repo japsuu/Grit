@@ -106,7 +106,6 @@ public class Grit : Game
     protected override void Update(GameTime gameTime)
     {
         CalculateFps(gameTime);
-        Debug.WriteLine($"Dt:{Globals.DeltaTime}, FDt:{Globals.FixedUpdateDeltaTime}, FAt:{Globals.FixedUpdateAlphaTime}");
         if (Settings.SYNCHRONIZE_FIXED_UPDATE_WITH_UPDATE)
         {
             Globals.FrameLengthMilliseconds = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
