@@ -352,12 +352,12 @@ public static class WorldMatrix
                 elementMatrix[index] = new AirElement(x, y);
                 PixelsToDraw[index] = elementMatrix[index].GetColor();
 
-                // // Generate some stone at the bottom of the world
-                // if (y >= Settings.WORLD_HEIGHT - 50)
-                // {
-                //     elementMatrix[index] = new StoneElement(x, y);
-                //     PixelsToDraw[index] = elementMatrix[index].GetColor();
-                // }
+                // Generate some stone at the bottom of the world
+                if (y >= Settings.WORLD_HEIGHT - 50)
+                {
+                    elementMatrix[index] = new StoneElement(x, y);
+                    PixelsToDraw[index] = elementMatrix[index].GetColor();
+                }
             }
         }
     }
