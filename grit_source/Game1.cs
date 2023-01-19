@@ -16,6 +16,7 @@ public class Game1 : Game
     public static Game1 Instance { get; private set; }
     public static SpriteFont DebugFont { get; private set; }
     public static OrthographicCamera MainCamera { get; private set; }
+    public static Rectangle ScreenBounds { get; private set; }
 
     private readonly StringBuilder stringBuilder;
     private readonly Process process;
@@ -24,6 +25,8 @@ public class Game1 : Game
     private SpriteBatch spriteBatch;
     private static float previousScrollValue;
     private int currentTargetFps;
+
+    private SimulationManager simulationManager;
 
     public Game1()
     {
@@ -48,7 +51,7 @@ public class Game1 : Game
         }
         else
         {
-            SetTargetFps(100);
+            SetTargetFps(60);
         }
     }
 
@@ -58,16 +61,19 @@ public class Game1 : Game
     {
         base.Initialize();
 
-        ViewportAdapter wpa =
-            new BoxingViewportAdapter(Window, GraphicsDevice, Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT);
+        ScreenBounds = GraphicsDevice.PresentationParameters.Bounds;
+
+        ViewportAdapter wpa = new BoxingViewportAdapter(Window, GraphicsDevice, Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT);
+        
         MainCamera = new OrthographicCamera(wpa)
         {
             MinimumZoom = 1,
             MaximumZoom = 40
         };
 
-        SimulationManager.Initialize(Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT,
-            GraphicsDevice.PresentationParameters.Bounds, GraphicsDevice);
+        RandomFactory.Initialize(123456789);
+
+        simulationManager = new SimulationManager(GraphicsDevice);
     }
 
     protected override void LoadContent()
@@ -79,21 +85,19 @@ public class Game1 : Game
 
     protected override void UnloadContent()
     {
-        SimulationManager.Dispose();
+        simulationManager.Dispose();
         graphics.Dispose();
         spriteBatch.Dispose();
     }
 
     protected override void Update(GameTime gameTime)
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
-            Keyboard.GetState().IsKeyDown(Keys.Escape))
-            Exit();
-
         CalculateFps(gameTime);
 
-        SimulationManager.UpdateSimulation(gameTime);
-
+        InputManager.Update();
+        
+        simulationManager.Update(gameTime);
+        
         UpdateCamera(gameTime);
 
         base.Update(gameTime);
@@ -106,20 +110,7 @@ public class Game1 : Game
         // Blocks the draw call and game loop until textures transferred to GPU.
         GraphicsDevice.Textures[0] = null;
 
-        // Apply the camera transform matrix
-        Matrix cameraMatrix = MainCamera.GetViewMatrix();
-
-        spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: cameraMatrix);
-
-        SimulationManager.DrawWorld(spriteBatch);
-
-        spriteBatch.End();
-
-        spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-
-        SimulationManager.DrawUi(spriteBatch);
-
-        spriteBatch.End();
+        simulationManager.Draw(spriteBatch, MainCamera.GetViewMatrix());
 
         base.Draw(gameTime);
     }

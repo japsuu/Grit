@@ -12,11 +12,14 @@ public class DirtyChunk
     #region PUBLIC FIELDS
 
     // Dirty rect values, constructed at the end of a frame from the dirty changes.
-    public bool IsCurrentlyDirty;
-    public int DirtyRectMinX;
-    public int DirtyRectMinY;
-    public int DirtyRectMaxX;
-    public int DirtyRectMaxY;
+    public volatile bool IsCurrentlyDirty;
+    public volatile int DirtyRectMinX;
+    public volatile int DirtyRectMinY;
+    public volatile int DirtyRectMaxX;
+    public volatile int DirtyRectMaxY;
+    
+    public readonly int ChunkMatrixPosX;
+    public readonly int ChunkMatrixPosY;
 
     #endregion
 
@@ -24,24 +27,21 @@ public class DirtyChunk
     #region PRIVATE FIELDS
 
     // Internal values used to determine dirty changes.
-    private bool internalIsDirty;
-    private int internalMinX;
-    private int internalMinY;
-    private int internalMaxX;
-    private int internalMaxY;
-    
-    private readonly int chunkPosX;
-    private readonly int chunkPosY;
+    private volatile bool internalIsDirty;
+    private volatile int internalMinX;
+    private volatile int internalMinY;
+    private volatile int internalMaxX;
+    private volatile int internalMaxY;
 
     #endregion
 
     
     #region PUBLIC METHODS
 
-    public DirtyChunk(int chunkPosX, int chunkPosY)
+    public DirtyChunk(int chunkMatrixPosX, int chunkMatrixPosY)
     {
-        this.chunkPosX = chunkPosX;
-        this.chunkPosY = chunkPosY;
+        ChunkMatrixPosX = chunkMatrixPosX;
+        ChunkMatrixPosY = chunkMatrixPosY;
         
         SetEverythingClean();
     }
@@ -74,10 +74,10 @@ public class DirtyChunk
     {
         // Dirty internally
         internalIsDirty = true;
-        internalMinX = chunkPosX;
-        internalMinY = chunkPosY;
-        internalMaxX = chunkPosX + Settings.WORLD_CHUNK_SIZE - 1;
-        internalMaxY = chunkPosY + Settings.WORLD_CHUNK_SIZE - 1;
+        internalMinX = ChunkMatrixPosX * Settings.WORLD_CHUNK_SIZE;
+        internalMinY = ChunkMatrixPosY * Settings.WORLD_CHUNK_SIZE;
+        internalMaxX = internalMinX + Settings.WORLD_CHUNK_SIZE - 1;
+        internalMaxY = internalMinY + Settings.WORLD_CHUNK_SIZE - 1;
         
         ConstructDirtyRect();
     }

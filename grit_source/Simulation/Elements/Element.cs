@@ -35,12 +35,12 @@ public abstract class Element
     
     #region PUBLIC METHODS
 
-    public virtual (int newX, int newY) Step(Element[] matrix, int x, int y, float deltaTime)
+    public virtual (int newX, int newY) Step(Simulation simulation, int x, int y, double deltaTime)
     {
         return (x, y);
     }
 
-    public virtual (int newX, int newY) RandomStep(Element[] matrix, int x, int y, float deltaTime)
+    public virtual (int newX, int newY) RandomStep(Simulation simulation, int x, int y, double deltaTime)
     {
         return (x, y);
     }
