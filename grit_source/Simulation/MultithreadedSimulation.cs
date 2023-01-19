@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -38,7 +39,7 @@ public class MultithreadedSimulation : Simulation
     /// </summary>
     private int[] shuffledIndexes;
 
-    private HashSet<int>[] chunksToStep;
+    private ConcurrentDictionary<int, byte>[] chunksToStep;
     
     private readonly bool isInitialized;
 
@@ -110,7 +111,7 @@ public class MultithreadedSimulation : Simulation
                 int chunkIndex = chunkX + chunkY * Settings.CHUNK_COUNT_X;
                 
                 AllChunks[chunkIndex].SetDirtyAt(x, y);
-                chunksToStep[chunkX % 2 + chunkY % 2 * 2].Add(chunkIndex);
+                chunksToStep[chunkX % 2 + chunkY % 2 * 2].AddOrUpdate(chunkIndex, i => 0, (i, b) => 0);
             }
         }
     }
@@ -141,7 +142,7 @@ public class MultithreadedSimulation : Simulation
                 int chunkIndex = chunkX + chunkY * Settings.CHUNK_COUNT_X;
                 
                 AllChunks[chunkIndex].SetDirtyAt(x, y);
-                chunksToStep[chunkX % 2 + chunkY % 2 * 2].Add(chunkIndex);
+                chunksToStep[chunkX % 2 + chunkY % 2 * 2].AddOrUpdate(chunkIndex, i => 0, (i, b) => 0);
             }
         }
     }
@@ -202,10 +203,10 @@ public class MultithreadedSimulation : Simulation
     {
         chunksToStep = new[]
         {
-            new HashSet<int>(Settings.QUARTER_OF_ALL_CHUNKS),
-            new HashSet<int>(Settings.QUARTER_OF_ALL_CHUNKS),
-            new HashSet<int>(Settings.QUARTER_OF_ALL_CHUNKS),
-            new HashSet<int>(Settings.QUARTER_OF_ALL_CHUNKS),
+            new ConcurrentDictionary<int, byte>(),
+            new ConcurrentDictionary<int, byte>(),
+            new ConcurrentDictionary<int, byte>(),
+            new ConcurrentDictionary<int, byte>(),
         };
 
         // Assign chunks to threads in a specific pattern, so that neighbouring chunks never get updated at the same time.
@@ -291,7 +292,7 @@ public class MultithreadedSimulation : Simulation
             // }
 
             int index = 0;
-            foreach (int s in chunksToStep[i])
+            foreach (int s in chunksToStep[i].Keys)
             {
                 int toStep = s;
                 double deltaTime = dt;
