@@ -12,7 +12,7 @@ public class SandElement : Element
     {
     }
 
-    public override (int newX, int newY) Step(Simulation simulation, int x, int y, double deltaTime)
+    public override (int newX, int newY) Step(Simulation simulation, int x, int y)
     {
         int newX = x;
         int newY = y;

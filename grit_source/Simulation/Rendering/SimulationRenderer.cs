@@ -1,5 +1,4 @@
 ﻿
-using System.Diagnostics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -20,7 +19,6 @@ public class SimulationRenderer
 
     private void TransferFramebuffer(Color[] buffer)
     {
-        Debug.WriteLine("TRANSFER FRAMEBUFFER");
         frameBuffer = buffer;
     }
 
@@ -42,7 +40,7 @@ public class SimulationRenderer
     /// </summary>
     public void Update()
     {
-        if (!Settings.DRAW_CURSOR_POS)
+        if (Settings.DRAW_CURSOR_POS)
         {
             cursorWorldPos = InputManager.MouseWorldPos;
             cursorScreenPos = InputManager.Mouse.Position.ToVector2();
@@ -51,7 +49,7 @@ public class SimulationRenderer
         if (Settings.DRAW_HOVERED_ELEMENT)
         {
             Point elementPos = cursorWorldPos.ToPoint();
-            objectUnderCursor = Game1.ScreenBounds.Contains(cursorWorldPos) ?
+            objectUnderCursor = Grit.ScreenBounds.Contains(cursorWorldPos) ?
                 simulation.GetElementAt(elementPos.X + elementPos.Y * Settings.WORLD_WIDTH).ToString() :
                 "none";
         }
@@ -66,7 +64,7 @@ public class SimulationRenderer
     public void DrawWorld(SpriteBatch spriteBatch)
     {
         // Draw chunk borders
-        if (Settings.CHUNKING_ENABLED && Settings.DRAW_CHUNK_BORDERS)
+        if (Settings.DRAW_CHUNK_BORDERS)
         {
             if (dirtyRects != null)
             {
@@ -86,7 +84,7 @@ public class SimulationRenderer
         spriteBatch.Draw(canvas, new Rectangle(0, 0, Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT), Color.White);
 
         // Draw dirty rects
-        if (Settings.CHUNKING_ENABLED && Settings.DRAW_DIRTY_RECTS)
+        if (Settings.DRAW_DIRTY_RECTS)
         {
             if(dirtyRects != null)
             {
@@ -109,14 +107,14 @@ public class SimulationRenderer
         {
             string cPos = cursorWorldPos.ToString();
             spriteBatch.DrawRectangle(cursorScreenPos + new Vector2(15, 5), new Size2(100, 1), Color.Blue, 8f);
-            spriteBatch.DrawString(Game1.DebugFont, cPos, cursorScreenPos + new Vector2(20, 0), Color.Red);
+            spriteBatch.DrawString(Grit.DebugFont, cPos, cursorScreenPos + new Vector2(20, 0), Color.Red);
         }
 
         if (Settings.DRAW_HOVERED_ELEMENT)
         {
             // Draw top bar (object under the cursor)
             spriteBatch.DrawRectangle(new Vector2(0, 0), new Size2(Settings.WORLD_WIDTH, 1), Color.Blue, 20f);
-            spriteBatch.DrawString(Game1.DebugFont, objectUnderCursor, new Vector2(5, 5), Color.Red);
+            spriteBatch.DrawString(Grit.DebugFont, objectUnderCursor, new Vector2(5, 5), Color.Red);
         }
     }
 

@@ -8,7 +8,7 @@ public static class InputManager
 {
     public static MouseStateExtended Mouse { get; private set; }
     public static KeyboardStateExtended Keyboard { get; private set; }
-    public static Vector2 MouseWorldPos => Game1.MainCamera.ScreenToWorld(Mouse.Position.X, Mouse.Position.Y);
+    public static Vector2 MouseWorldPos => Grit.MainCamera.ScreenToWorld(Mouse.Position.X, Mouse.Position.Y);
 
     public static bool IsMouseButtonDown(MouseButton button) => Mouse.IsButtonDown(button);
     public static bool IsMouseButtonUp(MouseButton button) => Mouse.IsButtonUp(button);

@@ -6,24 +6,34 @@ public static class Settings
     #region Update settings
 
     /// <summary>
-    /// If enabled, we cap the frame rate.
+    /// If enabled, we won't limit the frame rate.
     /// </summary>
     public const bool UNLOCK_FRAMERATE = true;
 
     /// <summary>
-    /// Dictates how many times per second the simulation is updated.
+    /// If enabled, we won't limit the simulation rate.
     /// </summary>
-    public const int SIMULATION_TARGET_TPS = 20;
+    public const bool SYNCHRONIZE_FIXED_UPDATE_WITH_UPDATE = false;
+
+    /// <summary>
+    /// Dictates how many times per second the FixedUpdate-loop is ran.
+    /// </summary>
+    public const int FIXED_UPDATE_TARGET_TPS = 20;
+
+    /// <summary>
+    /// If FPS is lower than this, Update is skipped for that frame.
+    /// </summary>
+    public const int UPDATE_MINIMUM_FPS = 10;
+
+    /// <summary>
+    /// FixedUpdate calls are limited to this many times per Update call.
+    /// </summary>
+    public const int MAXIMUM_FIXED_UPDATES_PER_FRAME = 4;
 
     /// <summary>
     /// Whether or not <see cref="RANDOM_TICKS_PER_FRAME"/> selections are made and updated each frame.
     /// </summary>
     public const bool RANDOM_TICKS_ENABLED = true;
-
-    /// <summary>
-    /// Whether or not to split the world updating to chunks.
-    /// </summary>
-    public const bool CHUNKING_ENABLED = true;
 
     /// <summary>
     /// How many additional random pixels are selected and updated each frame?
@@ -43,10 +53,8 @@ public static class Settings
 
     #region Chunk settings
 
-    //public const bool USE_WORLD_CHUNKING = true;
     public const int WORLD_CHUNK_SIZE = 64;
 
-    public const int QUARTER_OF_ALL_CHUNKS = CHUNK_COUNT_X * CHUNK_COUNT_Y / 4;
     public const int CHUNK_COUNT_X = WORLD_WIDTH / WORLD_CHUNK_SIZE;
     public const int CHUNK_COUNT_Y = WORLD_HEIGHT / WORLD_CHUNK_SIZE;
 

@@ -35,12 +35,12 @@ public class SimulationManager
         if (Settings.WORLD_WIDTH % Settings.WORLD_CHUNK_SIZE != 0 || Settings.WORLD_HEIGHT % Settings.WORLD_CHUNK_SIZE != 0)
             throw new Exception($"World size is not dividable by ChunkSize {Settings.WORLD_CHUNK_SIZE}!");
 
-        simulation = Settings.CHUNKING_ENABLED ? new MultithreadedSimulation(Settings.SIMULATION_TARGET_TPS) : new SinglethreadedSimulation(Settings.SIMULATION_TARGET_TPS);
+        simulation = new SinglethreadedSimulation();
         
         renderer = new SimulationRenderer(simulation, new Texture2D(graphics, Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT));
     }
 
-    public void Update(GameTime time)
+    public void Update()
     {
         HandleInput();
 
@@ -48,6 +48,11 @@ public class SimulationManager
             SpawnDebugSnow();
         
         renderer.Update();
+    }
+
+    public void FixedUpdate()
+    {
+        simulation.FixedUpdate();
     }
 
 
@@ -69,7 +74,6 @@ public class SimulationManager
 
     public void Dispose()
     {
-        simulation.Dispose();
         renderer.Dispose();
     }
 
@@ -123,12 +127,12 @@ public class SimulationManager
 
         if (InputManager.WasKeyJustUp(Keys.Multiply))
         {
-            Game1.Instance.ChangeTargetFps(5);
+            Grit.Instance.ChangeTargetFps(5);
         }
 
         if (InputManager.WasKeyJustUp(Keys.Divide))
         {
-            Game1.Instance.ChangeTargetFps(-5);
+            Grit.Instance.ChangeTargetFps(-5);
         }
 
         

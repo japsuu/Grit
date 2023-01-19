@@ -31,7 +31,7 @@ public class SinglethreadedSimulation : Simulation
     public override Element GetElementAt(int index) => elementMatrix[index];
 
 
-    protected override void StepRandomTicks(double dt, double a)
+    protected void StepRandomTicks()
     {
         if(!isInitialized) return;
 
@@ -44,7 +44,7 @@ public class SinglethreadedSimulation : Simulation
             
             // No need to manually set the random cell dirty, since we don't want consequent updates to happen.
             // If HandleStep creates a new cell/causes movement, dirtying will be handled internally.
-            (int newX, int newY) = elementMatrix[x + y * Settings.WORLD_WIDTH].RandomStep(this, x, y, dt);
+            (int newX, int newY) = elementMatrix[x + y * Settings.WORLD_WIDTH].RandomStep(this, x, y);
             
             steppedCells[newX + newY * Settings.WORLD_WIDTH] = true;
         }
@@ -61,7 +61,7 @@ public class SinglethreadedSimulation : Simulation
     }
 
 
-    public SinglethreadedSimulation(int targetTps) : base(targetTps)
+    public SinglethreadedSimulation()
     {
         steppedCells = new bool[Settings.WORLD_WIDTH * Settings.WORLD_HEIGHT];
 
@@ -82,7 +82,7 @@ public class SinglethreadedSimulation : Simulation
             return;
         
         elementMatrix[index] = newElement;
-        FrontBuffer[index] = newElement.GetColor();    //BUG: WARN: NOTE: TODO: Move this so that dirty pixels get redrawn/recolored! Move to Element.cs.Draw()?
+        FrameBuffer[index] = newElement.GetColor();    //BUG: WARN: NOTE: TODO: Move this so that dirty pixels get redrawn/recolored! Move to Element.cs.Draw()?
     }
     
     
@@ -98,11 +98,11 @@ public class SinglethreadedSimulation : Simulation
         int index1 = x1 + y1 * Settings.WORLD_WIDTH;
         int index2 = x2 + y2 * Settings.WORLD_WIDTH;
         (elementMatrix[index2], elementMatrix[index1]) = (elementMatrix[index1], elementMatrix[index2]);
-        (FrontBuffer[index2], FrontBuffer[index1]) = (FrontBuffer[index1], FrontBuffer[index2]);
+        (FrameBuffer[index2], FrameBuffer[index1]) = (FrameBuffer[index1], FrameBuffer[index2]);
     }
 
 
-    protected override void FixedUpdate(double dt, double a)
+    protected override void HandleUpdateSimulation()
     {
         if(!isInitialized) return;
         
@@ -126,13 +126,16 @@ public class SinglethreadedSimulation : Simulation
                 if (steppedCells[x + y * Settings.WORLD_WIDTH])
                     continue;
 
-                (int newX, int newY) = elementMatrix[x + y * Settings.WORLD_WIDTH].Step(this, x, y, dt);
+                (int newX, int newY) = elementMatrix[x + y * Settings.WORLD_WIDTH].Step(this, x, y);
 
                 steppedCells[newX + newY * Settings.WORLD_WIDTH] = true;
             }
 
             ShuffleIndexArray();
         }
+        
+        if(Settings.RANDOM_TICKS_ENABLED)
+            StepRandomTicks();
     }
     
     
@@ -158,13 +161,13 @@ public class SinglethreadedSimulation : Simulation
                 int index = x + y * Settings.WORLD_WIDTH;
         
                 elementMatrix[index] = new AirElement(x, y);
-                FrontBuffer[index] = elementMatrix[index].GetColor();
+                FrameBuffer[index] = elementMatrix[index].GetColor();
 
                 // Generate some stone at the bottom of the world
                 if (y >= Settings.WORLD_HEIGHT - 50)
                 {
                     elementMatrix[index] = new StoneElement(x, y);
-                    FrontBuffer[index] = elementMatrix[index].GetColor();
+                    FrameBuffer[index] = elementMatrix[index].GetColor();
                 }
             }
         }

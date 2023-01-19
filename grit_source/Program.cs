@@ -1,3 +1,3 @@
 ﻿
-using var game = new Grit.Game1();
+using var game = new Grit.Grit();
 game.Run();
