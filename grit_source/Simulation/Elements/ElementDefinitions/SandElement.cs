@@ -12,23 +12,24 @@ public class SandElement : Element
     {
     }
 
-    public override (int newX, int newY) Step(Simulation simulation, int x, int y)
+    public override (int newX, int newY) Tick(Simulation simulation, int worldRelativeX, int worldRelativeY)
     {
-        int newX = x;
-        int newY = y;
-        int belowY = y + 1;
+        int newX = worldRelativeX;
+        int newY = worldRelativeY;
+        int belowY = worldRelativeY + 1;
 
         // If at the bottom of the world, replace cell with air.
-        if (belowY >= Settings.WORLD_HEIGHT)
+        //WARN: 500 is for debug.
+        if (belowY >= 500)
         {
-            simulation.SetElementAt(x, y, new AirElement(x, y));
+            simulation.SetElementAt(worldRelativeX, worldRelativeY, new AirElement(worldRelativeX, worldRelativeY));
             return (newX, newY);
         }
 
         // Below cell.
-        if (simulation.GetElementAt(x + belowY * Settings.WORLD_WIDTH).GetForm() != ElementForm.Solid)
+        if (simulation.GetElementAt(worldRelativeX, belowY).GetForm() != ElementForm.Solid)
         {
-            simulation.SwapElementsAt(x, y, x, belowY);
+            simulation.SwapElementsAt(worldRelativeX, worldRelativeY, worldRelativeX, belowY);
             newY = belowY;
             return (newX, newY);
         }
@@ -38,21 +39,20 @@ public class SandElement : Element
         if (prioritizeLeft)
         {
             // Left bottom cell.
-            int leftX = x - 1;
-            if (leftX > -1 && simulation.GetElementAt(leftX + belowY * Settings.WORLD_WIDTH).GetForm() != ElementForm.Solid)
+            int leftX = worldRelativeX - 1;
+            if (simulation.GetElementAt(leftX, belowY).GetForm() != ElementForm.Solid)
             {
-                simulation.SwapElementsAt(x, y, leftX, belowY);
+                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, belowY);
                 newX = leftX;
                 newY = belowY;
                 return (newX, newY);
             }
 
             // Right bottom cell.
-            int rightX = x + 1;
-            if (rightX < Settings.WORLD_WIDTH &&
-                simulation.GetElementAt(rightX + belowY * Settings.WORLD_WIDTH).GetForm() != ElementForm.Solid)
+            int rightX = worldRelativeX + 1;
+            if (simulation.GetElementAt(rightX, belowY).GetForm() != ElementForm.Solid)
             {
-                simulation.SwapElementsAt(x, y, rightX, belowY);
+                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, belowY);
                 newX = rightX;
                 newY = belowY;
                 return (newX, newY);
@@ -61,21 +61,20 @@ public class SandElement : Element
         else
         {
             // Right bottom cell.
-            int rightX = x + 1;
-            if (rightX < Settings.WORLD_WIDTH &&
-                simulation.GetElementAt(rightX + belowY * Settings.WORLD_WIDTH).GetForm() != ElementForm.Solid)
+            int rightX = worldRelativeX + 1;
+            if (simulation.GetElementAt(rightX, belowY).GetForm() != ElementForm.Solid)
             {
-                simulation.SwapElementsAt(x, y, rightX, belowY);
+                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, belowY);
                 newX = rightX;
                 newY = belowY;
                 return (newX, newY);
             }
 
             // Left bottom cell.
-            int leftX = x - 1;
-            if (leftX > -1 && simulation.GetElementAt(leftX + belowY * Settings.WORLD_WIDTH).GetForm() != ElementForm.Solid)
+            int leftX = worldRelativeX - 1;
+            if (simulation.GetElementAt(leftX, belowY).GetForm() != ElementForm.Solid)
             {
-                simulation.SwapElementsAt(x, y, leftX, belowY);
+                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, belowY);
                 newX = leftX;
                 newY = belowY;
                 return (newX, newY);

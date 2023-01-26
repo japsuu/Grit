@@ -1,4 +1,7 @@
 ﻿
+using System.Diagnostics;
+using Grit.Simulation.Elements;
+using Grit.Simulation.World.Regions.Chunks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -7,31 +10,16 @@ namespace Grit.Simulation.Rendering;
 
 public class SimulationRenderer
 {
-    private readonly Simulation simulation;
-    private readonly Texture2D canvas;
-    
-    private Vector2 cursorScreenPos;
-    private Vector2 cursorWorldPos;
     private string objectUnderCursor;
-    
-    private Color[] frameBuffer;
-    private RectangleF[] dirtyRects;
 
-    private void TransferFramebuffer(Color[] buffer)
-    {
-        frameBuffer = buffer;
-    }
-
-    private void TransferDirtyRects(RectangleF[] rects) => dirtyRects = rects;
+    private readonly Simulation simulation;
+    private readonly ChunkManager chunkManager;
 
 
-    public SimulationRenderer(Simulation simulation, Texture2D canvas)
+    public SimulationRenderer(Simulation simulation, ChunkManager chunkManager)
     {
         this.simulation = simulation;
-        this.canvas = canvas;
-        frameBuffer = new Color[Settings.WORLD_WIDTH * Settings.WORLD_HEIGHT];
-        simulation.TransferFramebuffer += TransferFramebuffer;
-        simulation.TransferDirtyRects += TransferDirtyRects;
+        this.chunkManager = chunkManager;
     }
 
 
@@ -40,21 +28,10 @@ public class SimulationRenderer
     /// </summary>
     public void Update()
     {
-        if (Settings.DRAW_CURSOR_POS)
+        for (int i = 0; i < chunkManager.CurrentlyLoadedChunks.Count; i++)
         {
-            cursorWorldPos = InputManager.MouseWorldPos;
-            cursorScreenPos = InputManager.Mouse.Position.ToVector2();
+            chunkManager.CurrentlyLoadedChunks[i].Render();
         }
-
-        if (Settings.DRAW_HOVERED_ELEMENT)
-        {
-            Point elementPos = cursorWorldPos.ToPoint();
-            objectUnderCursor = Grit.ScreenBounds.Contains(cursorWorldPos) ?
-                simulation.GetElementAt(elementPos.X + elementPos.Y * Settings.WORLD_WIDTH).ToString() :
-                "none";
-        }
-        
-        canvas.SetData(frameBuffer, 0, Settings.WORLD_WIDTH * Settings.WORLD_HEIGHT);
     }
 
     
@@ -63,38 +40,31 @@ public class SimulationRenderer
     /// </summary>
     public void DrawWorld(SpriteBatch spriteBatch)
     {
-        // Draw chunk borders
-        if (Settings.DRAW_CHUNK_BORDERS)
+        for (int i = 0; i < chunkManager.CurrentlyLoadedChunks.Count; i++)
         {
-            if (dirtyRects != null)
+            // Draw world
+            spriteBatch.Draw(chunkManager.CurrentlyLoadedChunks[i].Canvas, chunkManager.CurrentlyLoadedChunks[i].Rectangle, Color.White);
+            
+            // Draw chunk borders
+            if (Settings.DRAW_CHUNK_BORDERS)
             {
-                for (int x = 0; x < Settings.CHUNK_COUNT_X; x++)
-                {
-                    for (int y = 0; y < Settings.CHUNK_COUNT_Y; y++)
-                    {
-                        bool dirty = !dirtyRects[x + y * Settings.CHUNK_COUNT_X].IsEmpty;
-                        Color color = dirty ? Color.Orange : Color.DarkGray;
-                        spriteBatch.DrawRectangle(x * Settings.WORLD_CHUNK_SIZE, y * Settings.WORLD_CHUNK_SIZE, Settings.WORLD_CHUNK_SIZE, Settings.WORLD_CHUNK_SIZE, color, 0.5f);
-                    }
-                }
+                Color color = chunkManager.CurrentlyLoadedChunks[i].GetDebugRenderColor();
+                spriteBatch.DrawRectangle(chunkManager.CurrentlyLoadedChunks[i].Rectangle, color, 1f);
+            }
+            
+            // Debug draw chunk lifetimes:
+            //spriteBatch.DrawString(Grit.DebugFont, chunkManager.CurrentlyLoadedChunks[i].DebugLifetime.ToString(), chunkManager.CurrentlyLoadedChunks[i].Rectangle.Center.ToVector2(), Color.Blue);
+            
+            // Draw dirty rects
+            if (Settings.DRAW_DIRTY_RECTS)
+            {
+                RectangleF dirtyRect = chunkManager.CurrentlyLoadedChunks[i].GetDebugDirtyRect();
+                if (!dirtyRect.IsEmpty)
+                    spriteBatch.DrawRectangle(dirtyRect, Color.Red, 1f);
             }
         }
         
-        // Draw world
-        spriteBatch.Draw(canvas, new Rectangle(0, 0, Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT), Color.White);
-
-        // Draw dirty rects
-        if (Settings.DRAW_DIRTY_RECTS)
-        {
-            if(dirtyRects != null)
-            {
-                foreach (RectangleF dirtyRect in dirtyRects)
-                {
-                    if (!dirtyRect.IsEmpty)
-                        spriteBatch.DrawRectangle(dirtyRect, Color.Red, 1f);
-                }
-            }
-        }
+        spriteBatch.DrawCircle(Globals.PlayerPosition, 2, 8, Color.Lime);
     }
 
 
@@ -105,22 +75,21 @@ public class SimulationRenderer
     {
         if (Settings.DRAW_CURSOR_POS)
         {
-            string cPos = cursorWorldPos.ToString();
-            spriteBatch.DrawRectangle(cursorScreenPos + new Vector2(15, 5), new Size2(100, 1), Color.Blue, 8f);
-            spriteBatch.DrawString(Grit.DebugFont, cPos, cursorScreenPos + new Vector2(20, 0), Color.Red);
+            string cPos = InputManager.MousePixelWorldPosition.ToString();
+            spriteBatch.DrawRectangle(InputManager.Mouse.Position.ToVector2() + new Vector2(15, 5), new Size2(100, 1), Color.Blue, 8f);
+            spriteBatch.DrawString(Grit.DebugFont, cPos, InputManager.Mouse.Position.ToVector2() + new Vector2(20, 0), Color.Red);
         }
 
         if (Settings.DRAW_HOVERED_ELEMENT)
         {
+            Element element = simulation.GetElementAt(InputManager.MousePixelWorldPosition.X, InputManager.MousePixelWorldPosition.Y);
+            objectUnderCursor = element != null ?
+                element.ToString() :
+                "none";
+            
             // Draw top bar (object under the cursor)
-            spriteBatch.DrawRectangle(new Vector2(0, 0), new Size2(Settings.WORLD_WIDTH, 1), Color.Blue, 20f);
+            spriteBatch.DrawRectangle(new Vector2(0, 0), new Size2(Settings.WINDOW_WIDTH, 1), Color.Blue, 20f);
             spriteBatch.DrawString(Grit.DebugFont, objectUnderCursor, new Vector2(5, 5), Color.Red);
         }
-    }
-
-    
-    public void Dispose()
-    {
-        canvas.Dispose();
     }
 }

@@ -35,14 +35,15 @@ public abstract class Element
     
     #region PUBLIC METHODS
 
-    public virtual (int newX, int newY) Step(Simulation simulation, int x, int y)
+    
+    public virtual (int newX, int newY) Tick(Simulation simulation, int worldRelativeX, int worldRelativeY)
     {
-        return (x, y);
+        return (worldRelativeX, worldRelativeY);
     }
 
-    public virtual (int newX, int newY) RandomStep(Simulation simulation, int x, int y)
+    public virtual (int newX, int newY) RandomTick(Simulation simulation, int worldRelativeX, int worldRelativeY)
     {
-        return (x, y);
+        return (worldRelativeX, worldRelativeY);
     }
 
     public virtual Color GetColor()

@@ -18,7 +18,7 @@ public static class Settings
     /// <summary>
     /// Dictates how many times per second the FixedUpdate-loop is ran.
     /// </summary>
-    public const int FIXED_UPDATE_TARGET_TPS = 20;
+    public const int FIXED_UPDATE_TARGET_TPS = 10;
 
     /// <summary>
     /// If FPS is lower than this, Update is skipped for that frame.
@@ -38,25 +38,29 @@ public static class Settings
     /// <summary>
     /// How many additional random pixels are selected and updated each frame?
     /// </summary>
-    public const int RANDOM_TICKS_PER_FRAME = 64;
+    public const int RANDOM_TICKS_PER_FRAME = 3;
 
     #endregion
 
 
-    #region World generation settings
-
-    public const int WORLD_WIDTH = 512;
-    public const int WORLD_HEIGHT = 512;
-
-    #endregion
+    public const int WINDOW_WIDTH = 1280;
+    public const int WINDOW_HEIGHT = 720;
 
 
     #region Chunk settings
 
     public const int WORLD_CHUNK_SIZE = 64;
 
-    public const int CHUNK_COUNT_X = WORLD_WIDTH / WORLD_CHUNK_SIZE;
-    public const int CHUNK_COUNT_Y = WORLD_HEIGHT / WORLD_CHUNK_SIZE;
+    //TODO: Try using WINDOW_WIDTH here?
+    public const int CHUNK_TICK_RADIUS = 128;
+    public const int CHUNK_TICK_RADIUS_SQUARED = CHUNK_TICK_RADIUS * CHUNK_TICK_RADIUS;
+
+    //TODO: Try using WINDOW_WIDTH here?
+    public const int CHUNK_LOAD_RADIUS = 256;
+    public const int CHUNK_LOAD_RADIUS_SQUARED = CHUNK_LOAD_RADIUS * CHUNK_LOAD_RADIUS;
+
+    // How many seconds it takes for a chunk to unload, after it has left the load radius.
+    public const float UNLOADED_CHUNK_LIFETIME = 2f;
 
     #endregion
 
@@ -74,8 +78,8 @@ public static class Settings
     #region Debug draw settings
 
     public const bool DRAW_CHUNK_BORDERS = true;
-    public const bool DRAW_CURSOR_POS = false;
-    public const bool DRAW_HOVERED_ELEMENT = false;
+    public const bool DRAW_CURSOR_POS = true;
+    public const bool DRAW_HOVERED_ELEMENT = true;
     public const bool DRAW_DIRTY_RECTS = true;
 
     #endregion

@@ -17,6 +17,7 @@ public class Grit : Game
     public static SpriteFont DebugFont { get; private set; }
     public static OrthographicCamera MainCamera { get; private set; }
     public static Rectangle ScreenBounds { get; private set; }
+    public static GraphicsDevice Graphics { get; private set; }
 
     private readonly StringBuilder stringBuilder;
     private readonly Process process;
@@ -25,15 +26,15 @@ public class Grit : Game
     private SpriteBatch spriteBatch;
     private float previousScrollValue;
     private int currentTargetFps;
-    private SimulationManager simulationManager;
+    private SimulationController simulationController;
     
     // Fixed update loop fields.
+    private readonly Stopwatch stopwatch;
     private float accumulator;
-    private float previousTime;
-    private float fixedUpdateDeltaTime;
-    private readonly float targetFixedUpdateDeltaTime;
-    private readonly float fixedUpdateMinDeltaTime;
-    private readonly float maximumFrameTime;
+    private float previousFrameTotalMilliseconds;
+    private float fixedUpdateFrameLengthMilliseconds;
+    private readonly float fixedUpdateTargetFrameLengthMilliseconds;
+    private readonly float maximumFrameTimeToAllowFixedUpdate;
 
     public Grit()
     {
@@ -46,8 +47,8 @@ public class Grit : Game
         frameCounter = new FrameCounter();
         stringBuilder = new StringBuilder(64);
         
-        graphics.PreferredBackBufferWidth = Settings.WORLD_WIDTH;
-        graphics.PreferredBackBufferHeight = Settings.WORLD_HEIGHT;
+        graphics.PreferredBackBufferWidth = Settings.WINDOW_WIDTH;
+        graphics.PreferredBackBufferHeight = Settings.WINDOW_HEIGHT;
 
         graphics.SynchronizeWithVerticalRetrace = false;
 
@@ -60,10 +61,11 @@ public class Grit : Game
         {
             SetTargetFps(60);
         }
-        
-        targetFixedUpdateDeltaTime = 1000f / Settings.FIXED_UPDATE_TARGET_TPS;
-        fixedUpdateMinDeltaTime = 1000f / Settings.UPDATE_MINIMUM_FPS;
-        maximumFrameTime = 1000f / Settings.MAXIMUM_FIXED_UPDATES_PER_FRAME;
+
+        stopwatch = new Stopwatch();
+        fixedUpdateTargetFrameLengthMilliseconds = 1000f / Settings.FIXED_UPDATE_TARGET_TPS;
+        maximumFrameTimeToAllowFixedUpdate = 1000f / Settings.MAXIMUM_FIXED_UPDATES_PER_FRAME;
+        stopwatch.Start();
     }
 
     #region GAME LOGIC
@@ -72,9 +74,10 @@ public class Grit : Game
     {
         base.Initialize();
 
-        ScreenBounds = GraphicsDevice.PresentationParameters.Bounds;
+        Graphics = GraphicsDevice;
+        ScreenBounds = Graphics.PresentationParameters.Bounds;
 
-        ViewportAdapter wpa = new BoxingViewportAdapter(Window, GraphicsDevice, Settings.WORLD_WIDTH, Settings.WORLD_HEIGHT);
+        ViewportAdapter wpa = new BoxingViewportAdapter(Window, Graphics, Settings.WINDOW_WIDTH, Settings.WINDOW_HEIGHT);
         
         MainCamera = new OrthographicCamera(wpa)
         {
@@ -84,7 +87,9 @@ public class Grit : Game
 
         RandomFactory.Initialize(123456789);
 
-        simulationManager = new SimulationManager(GraphicsDevice);
+        Globals.PlayerPosition = MainCamera.Center;
+        
+        simulationController = new SimulationController();
     }
 
     protected override void LoadContent()
@@ -96,7 +101,7 @@ public class Grit : Game
 
     protected override void UnloadContent()
     {
-        simulationManager.Dispose();
+        simulationController.Dispose();
         graphics.Dispose();
         spriteBatch.Dispose();
     }
@@ -109,58 +114,54 @@ public class Grit : Game
         if (Settings.SYNCHRONIZE_FIXED_UPDATE_WITH_UPDATE)
         {
             Globals.FrameLengthMilliseconds = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
-            Globals.DeltaTime = gameTime.GetElapsedSeconds();
+            Globals.FrameLengthSeconds = gameTime.GetElapsedSeconds();
             Globals.Time = gameTime;
-            Globals.FixedUpdateDeltaTime = Globals.DeltaTime;
+            Globals.FixedFrameLengthSeconds = Globals.FrameLengthSeconds;
             Globals.FixedUpdateAlphaTime = 0;
             
             FixedUpdate();
         }
         else
         {
-            // Skip update altogether, if we are running at low enough FPS.
-            // This is done to allow the FPS to recover.
-            if (gameTime.ElapsedGameTime.TotalSeconds > fixedUpdateMinDeltaTime)
-            {
-                accumulator = 0;
-                previousTime = 0;
-                return;
-            }
-            
-            if (previousTime == 0)
-            {
-                fixedUpdateDeltaTime = targetFixedUpdateDeltaTime;
-                previousTime = (float)gameTime.TotalGameTime.TotalMilliseconds;
-            }
-            
-            Globals.FrameLengthMilliseconds = (float)gameTime.ElapsedGameTime.TotalMilliseconds;
-            Globals.DeltaTime = gameTime.GetElapsedSeconds();
-            Globals.Time = gameTime;
-            Globals.FixedUpdateDeltaTime = fixedUpdateDeltaTime;
-            
-            float currentTime = (float)gameTime.TotalGameTime.TotalMilliseconds;
-            float frameTime = currentTime - previousTime;
-            if (frameTime > maximumFrameTime)
-            {
-                frameTime = maximumFrameTime;
-            }
-            previousTime = currentTime;
+            float currentFrameTotalMilliseconds = stopwatch.ElapsedMilliseconds;
+            float currentFrameLengthMilliseconds = currentFrameTotalMilliseconds - previousFrameTotalMilliseconds;
 
-            accumulator += frameTime;
-
-            while (accumulator >= fixedUpdateDeltaTime)
+            // Only ran at the first frame
+            if (previousFrameTotalMilliseconds == 0)
             {
+                fixedUpdateFrameLengthMilliseconds = fixedUpdateTargetFrameLengthMilliseconds;
+                previousFrameTotalMilliseconds = stopwatch.ElapsedMilliseconds;
+            }
+            
+            if (currentFrameLengthMilliseconds > maximumFrameTimeToAllowFixedUpdate)
+            {
+                currentFrameLengthMilliseconds = maximumFrameTimeToAllowFixedUpdate;
+            }
+            previousFrameTotalMilliseconds = currentFrameTotalMilliseconds;
+
+            accumulator += currentFrameLengthMilliseconds;
+
+            while (accumulator >= fixedUpdateFrameLengthMilliseconds)
+            {
+                Globals.FixedFrameLengthSeconds = accumulator / 1000;
+                Globals.FixedFrameLengthMilliseconds = accumulator;
+                //Globals.FixedFrameLengthMilliseconds = (float)stopwatch.Elapsed.TotalMilliseconds;
+                
                 FixedUpdate();
                 
-                accumulator -= fixedUpdateDeltaTime;
+                accumulator -= fixedUpdateFrameLengthMilliseconds;
             }
             
-            Globals.FixedUpdateAlphaTime = accumulator / fixedUpdateDeltaTime;
+            Globals.FixedUpdateAlphaTime = accumulator / fixedUpdateFrameLengthMilliseconds;
+            
+            Globals.Time = gameTime;
+            Globals.FrameLengthSeconds = currentFrameLengthMilliseconds / 1000;
+            Globals.FrameLengthMilliseconds = currentFrameLengthMilliseconds;
         }
 
         InputManager.Update();
         
-        simulationManager.Update();
+        simulationController.Update();
         
         UpdateCamera(gameTime);
 
@@ -169,17 +170,17 @@ public class Grit : Game
 
     private void FixedUpdate()
     {
-        simulationManager.FixedUpdate();
+        simulationController.FixedUpdate();
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(Color.Black);
+        Graphics.Clear(Color.Black);
 
         // Blocks the draw call and game loop until textures transferred to GPU.
-        GraphicsDevice.Textures[0] = null;
+        Graphics.Textures[0] = null;
 
-        simulationManager.Draw(spriteBatch, MainCamera.GetViewMatrix());
+        simulationController.Draw(spriteBatch, MainCamera.GetViewMatrix());
 
         base.Draw(gameTime);
     }
@@ -237,6 +238,8 @@ public class Grit : Game
             MainCamera.ZoomOut(MainCamera.Zoom * 10f * gameTime.GetElapsedSeconds());
 
         previousScrollValue = Mouse.GetState().ScrollWheelValue;
+
+        Globals.PlayerPosition = MainCamera.Center;
     }
 
     private static Vector2 GetCameraMovementDirection()

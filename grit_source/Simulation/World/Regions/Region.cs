@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Xna.Framework;
 
-namespace Grit.Simulation.World;
+namespace Grit.Simulation.World.Regions;
 
 /// <summary>
 /// Represents a <see cref="SIZE_IN_CHUNKS"/> * <see cref="SIZE_IN_CHUNKS"/> area of chunks.
@@ -11,27 +11,27 @@ public class Region
     private const int SIZE_IN_CHUNKS = 4;
     private const int DIMENSIONS = SIZE_IN_CHUNKS * Settings.WORLD_CHUNK_SIZE;
 
-    public readonly Vector2Int WorldPosition;
+    public readonly Point WorldPosition;
 
-    public readonly Vector2Int[] ContainedChunks;
+    public readonly Point[] ContainedChunks;
 
-    public Region(Vector2Int worldPosition)
+    public Region(Point worldPosition)
     {
         WorldPosition = worldPosition;
         
-        int minX = worldPosition.x;
-        int minY = worldPosition.y;
+        int minX = worldPosition.X;
+        int minY = worldPosition.Y;
         int maxX = minX + DIMENSIONS;
         int maxY = minY + DIMENSIONS;
 
-        ContainedChunks = new Vector2Int[SIZE_IN_CHUNKS * SIZE_IN_CHUNKS];
+        ContainedChunks = new Point[SIZE_IN_CHUNKS * SIZE_IN_CHUNKS];
 
         int index = 0;
         for (int y = minY; y < maxY; y += Settings.WORLD_CHUNK_SIZE)
         {
             for (int x = minX; x < maxX; x += Settings.WORLD_CHUNK_SIZE)
             {
-                ContainedChunks[index] = new Vector2Int(x, y);
+                ContainedChunks[index] = new Point(x, y);
                 index++;
             }
         }
