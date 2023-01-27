@@ -1,11 +1,11 @@
 ﻿
 using System;
-using System.Diagnostics;
 using Grit.Simulation.Elements;
 using Grit.Simulation.World.Regions.Chunks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
+using MonoGame.ImGui.Standard;
 
 namespace Grit.Simulation.Rendering;
 
@@ -41,7 +41,7 @@ public class SimulationRenderer
             dirtyChunkShouldFlash = !dirtyChunkShouldFlash;
         }
         
-        if(Settings.FLASH_DIRTY_CHUNKS)
+        if(Settings.FlashDirtyChunks)
             dirtyChunkFlashTimer -= Globals.FixedFrameLengthSeconds;
     }
 
@@ -49,7 +49,7 @@ public class SimulationRenderer
     /// <summary>
     /// Draws all elements which should be affected by the camera matrix.
     /// </summary>
-    public void DrawWorld(SpriteBatch spriteBatch)
+    public void DrawWithMatrix(SpriteBatch spriteBatch)
     {
         foreach (Chunk chunk in chunkManager.CurrentlyLoadedChunks)
         {
@@ -57,16 +57,23 @@ public class SimulationRenderer
             spriteBatch.Draw(chunk.Canvas, chunk.Rectangle, Color.White);
             
             // Draw chunk borders
-            if (Settings.DRAW_CHUNK_BORDERS)
+            if (Settings.DrawChunkBorders)
             {
                 DrawChunkBorders(chunk, spriteBatch);
             }
+            
+            // Flash dirty chunks
+            if (Settings.FlashDirtyChunks && chunk.IsDirty && chunk.State == Chunk.LoadState.Ticking && dirtyChunkShouldFlash)
+            {
+                spriteBatch.DrawRectangle(chunk.Rectangle, Color.Red, 2f);
+            }
+        
             
             // Debug draw chunk lifetime:
             //spriteBatch.DrawString(Grit.DebugFont, chunkManager.CurrentlyLoadedChunks[i].DebugLifetime.ToString(), chunkManager.CurrentlyLoadedChunks[i].Rectangle.Center.ToVector2(), Color.Blue);
             
             // Draw random ticks
-            if (Settings.DRAW_RANDOM_TICKS && chunk.State == Chunk.LoadState.Ticking)
+            if (Settings.DrawRandomTicks && chunk.State == Chunk.LoadState.Ticking)
             {
                 int chunkHeight = chunk.Rectangle.Height;
                 int chunkWidth = chunk.Rectangle.Width;
@@ -87,19 +94,19 @@ public class SimulationRenderer
             }
             
             // Draw dirty rects
-            if (Settings.DRAW_DIRTY_RECTS)
+            if (Settings.DrawDirtyRects)
             {
-                if (!chunk.DirtyRect.IsEmpty)
+                if (!chunk.DirtyRect.IsEmpty && chunk.State == Chunk.LoadState.Ticking)
                     spriteBatch.DrawRectangle(chunk.DirtyRect, Color.Red, 1f);
             }
         }
 
-        if (Settings.DRAW_CHUNK_LOAD_RADIUS)
+        if (Settings.DrawChunkLoadRadius)
         {
             spriteBatch.DrawCircle(Globals.PlayerPosition, Settings.CHUNK_LOAD_RADIUS, 12, Color.Orange);
         }
 
-        if (Settings.DRAW_CHUNK_TICK_RADIUS)
+        if (Settings.DrawChunkTickRadius)
         {
             spriteBatch.DrawCircle(Globals.PlayerPosition, Settings.CHUNK_TICK_RADIUS, 12, Color.Yellow);
         }
@@ -111,16 +118,16 @@ public class SimulationRenderer
     /// <summary>
     /// Draws all elements which should NOT be affected by the camera matrix.
     /// </summary>
-    public void DrawUi(SpriteBatch spriteBatch)
+    public void DrawWithoutMatrix(SpriteBatch spriteBatch)
     {
-        if (Settings.DRAW_CURSOR_POS)
+        if (Settings.DrawCursorPos)
         {
             string cPos = InputManager.MousePixelWorldPosition.ToString();
             spriteBatch.DrawRectangle(InputManager.Mouse.Position.ToVector2() + new Vector2(15, 5), new Size2(100, 1), Color.Blue, 8f);
             spriteBatch.DrawString(Grit.DebugFont, cPos, InputManager.Mouse.Position.ToVector2() + new Vector2(20, 0), Color.Red);
         }
 
-        if (Settings.DRAW_HOVERED_ELEMENT)
+        if (Settings.DrawCursorHoveredElement)
         {
             Element element = simulation.GetElementAt(InputManager.MousePixelWorldPosition.X, InputManager.MousePixelWorldPosition.Y);
             objectUnderCursor = element != null ?
@@ -133,6 +140,11 @@ public class SimulationRenderer
         }
     }
 
+    public void DrawImGui(ImGUIRenderer imGuiRenderer)
+    {
+        
+    }
+
     private void DrawChunkBorders(Chunk chunk, SpriteBatch spriteBatch)
     {
         Color color = chunk.State switch
@@ -142,16 +154,7 @@ public class SimulationRenderer
             Chunk.LoadState.Unloading => Color.Red * (chunk.Lifetime / Settings.UNLOADED_CHUNK_LIFETIME),
             _ => throw new ArgumentOutOfRangeException()
         };
-
-        float thickness = 1f;
-          
-        // Flash dirty chunks
-        if (Settings.FLASH_DIRTY_CHUNKS && chunk.IsDirty && dirtyChunkShouldFlash)
-        {
-            color = Color.Red;
-            thickness = 2f;
-        }
         
-        spriteBatch.DrawRectangle(chunk.Rectangle, color, thickness);
+        spriteBatch.DrawRectangle(chunk.Rectangle, color, 1f);
     }
 }

@@ -3,11 +3,11 @@ using System.Diagnostics;
 using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using Grit.Simulation;
 using Grit.UI;
 using MonoGame.Extended;
 using MonoGame.Extended.ViewportAdapters;
+using MonoGame.ImGui.Standard;
 
 namespace Grit;
 
@@ -24,9 +24,9 @@ public class Grit : Game
     private readonly FrameCounter frameCounter;
     private readonly GraphicsDeviceManager graphics;
     private SpriteBatch spriteBatch;
-    private float previousScrollValue;
     private int currentTargetFps;
     private SimulationController simulationController;
+    private ImGUIRenderer imGuiRenderer;
     
     // Fixed update loop fields.
     private readonly Stopwatch stopwatch;
@@ -78,6 +78,8 @@ public class Grit : Game
         ScreenBounds = Graphics.PresentationParameters.Bounds;
 
         ViewportAdapter wpa = new BoxingViewportAdapter(Window, Graphics, Settings.WINDOW_WIDTH, Settings.WINDOW_HEIGHT);
+
+        imGuiRenderer = new ImGUIRenderer(this).Initialize().RebuildFontAtlas();
         
         MainCamera = new OrthographicCamera(wpa)
         {
@@ -164,8 +166,6 @@ public class Grit : Game
         InputManager.Update();
         
         simulationController.Update();
-        
-        UpdateCamera(gameTime);
 
         base.Update(gameTime);
     }
@@ -182,7 +182,7 @@ public class Grit : Game
         // Blocks the draw call and game loop until textures transferred to GPU.
         Graphics.Textures[0] = null;
 
-        simulationController.Draw(spriteBatch, MainCamera.GetViewMatrix());
+        simulationController.Draw(spriteBatch, imGuiRenderer, MainCamera.GetViewMatrix());
 
         base.Draw(gameTime);
     }
@@ -227,41 +227,6 @@ public class Grit : Game
         stringBuilder.Clear().Append($"{frameCounter.CurrentFramesPerSecond:F1} FPS @ {usedMemory} MB");
 
         Window.Title = stringBuilder.ToString();
-    }
-
-    private void UpdateCamera(GameTime gameTime)
-    {
-        MainCamera.Move(GetCameraMovementDirection() * Settings.CAMERA_MOVEMENT_SPEED * gameTime.GetElapsedSeconds());
-
-        // Logarithmic zoom gang.
-        if (previousScrollValue < Mouse.GetState().ScrollWheelValue)
-            MainCamera.ZoomIn(MainCamera.Zoom * 10f * gameTime.GetElapsedSeconds());
-        else if (previousScrollValue > Mouse.GetState().ScrollWheelValue)
-            MainCamera.ZoomOut(MainCamera.Zoom * 10f * gameTime.GetElapsedSeconds());
-
-        previousScrollValue = Mouse.GetState().ScrollWheelValue;
-
-        Globals.PlayerPosition = MainCamera.Center;
-    }
-
-    private static Vector2 GetCameraMovementDirection()
-    {
-        Vector2 movementDirection = Vector2.Zero;
-        KeyboardState state = Keyboard.GetState();
-
-        if (state.IsKeyDown(Keys.Down) || state.IsKeyDown(Keys.S))
-            movementDirection += Vector2.UnitY;
-
-        if (state.IsKeyDown(Keys.Up) || state.IsKeyDown(Keys.W))
-            movementDirection -= Vector2.UnitY;
-
-        if (state.IsKeyDown(Keys.Left) || state.IsKeyDown(Keys.A))
-            movementDirection -= Vector2.UnitX;
-
-        if (state.IsKeyDown(Keys.Right) || state.IsKeyDown(Keys.D))
-            movementDirection += Vector2.UnitX;
-
-        return movementDirection;
     }
 
     #endregion

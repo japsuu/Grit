@@ -1,18 +1,14 @@
 ﻿
 using System;
-using System.Diagnostics;
 using Grit.Simulation.Elements;
-using Grit.Simulation.Rendering;
 using Grit.Simulation.World.Regions.Chunks;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace Grit.Simulation;
 
 public class Simulation
 {
     private readonly ChunkManager chunkManager;
-    private readonly SimulationRenderer renderer;
     
     private static Point SnapPositionToChunkGrid(int worldRelativeX, int worldRelativeY) =>
         new(worldRelativeX & ~63, worldRelativeY & ~63);
@@ -24,34 +20,15 @@ public class Simulation
     }
 
 
-    public Simulation()
+    public Simulation(ChunkManager chunkManager)
     {
-        chunkManager = new ChunkManager(this);
-        renderer = new SimulationRenderer(this, chunkManager);
+        this.chunkManager = chunkManager;
     }
 
     
     public void FixedUpdate()
     {
         HandleUpdateSimulation();
-        
-        renderer.FixedUpdate();
-    }
-
-
-    public void Draw(SpriteBatch spriteBatch, Matrix cameraMatrix)
-    {
-        spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: cameraMatrix);
-
-        renderer.DrawWorld(spriteBatch);
-
-        spriteBatch.End();
-
-        spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-
-        renderer.DrawUi(spriteBatch);
-
-        spriteBatch.End();
     }
 
 
@@ -122,7 +99,7 @@ public class Simulation
         }
         else
         {
-            throw new Exception($"Tried to set element outside of loaded chunks (cP:{chunkPosition})!");
+            Logger.Write(Logger.LogType.ERROR, $"Tried to set element outside of loaded chunks (Cpos:{chunkPosition})!");
         }
     }
 
@@ -178,7 +155,7 @@ public class Simulation
         }
         else
         {
-            throw new Exception("Tried to dirty element outside of loaded chunks!");
+            Logger.Write(Logger.LogType.ERROR, $"Tried to dirty element outside of loaded chunks (Cpos:{chunkToDirtyPosition})!");
         }
     }
 
@@ -204,8 +181,6 @@ public class Simulation
 
     private void HandleUpdateSimulation()
     {
-        chunkManager.Update();
-        
         for (int i = 0; i < chunkManager.CurrentlyTickingChunks.Count; i++)
         {
             chunkManager.CurrentlyTickingChunks[i].ProcessTick();

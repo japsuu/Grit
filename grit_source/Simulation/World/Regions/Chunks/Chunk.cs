@@ -50,9 +50,7 @@ public class Chunk
         steppedCells = new BitArray(dimensions * dimensions);
         dirtyRectangle = new DirtyRectangle();
         Canvas = new Texture2D(Grit.Graphics, dimensions, dimensions);
-        
-        if(Settings.DRAW_RANDOM_TICKS)
-            RandomTickSteppedCells = new BitArray(dimensions * dimensions);
+        RandomTickSteppedCells = new BitArray(dimensions * dimensions);
 
         InitializeShuffledIndexes();
         
@@ -134,7 +132,7 @@ public class Chunk
     /// </summary>
     public void ProcessRandomTick()
     {
-        if(Settings.DRAW_RANDOM_TICKS)
+        if(Settings.DrawRandomTicks)
             RandomTickSteppedCells.SetAll(false);
             
         for (int i = 0; i < Settings.RANDOM_TICKS_PER_FRAME; i++)
@@ -149,7 +147,7 @@ public class Chunk
             // If HandleStep creates a new cell/causes movement, dirtying will be handled internally.
             (int newX, int newY) = cells[index].RandomTick(simulation, x, y);
             
-            if(Settings.DRAW_RANDOM_TICKS)
+            if(Settings.DrawRandomTicks)
                 RandomTickSteppedCells.Set(index, true);
             
             simulation.SetSteppedAt(newX, newY);

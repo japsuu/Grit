@@ -47,11 +47,11 @@ public static class Settings
     public const int WORLD_CHUNK_SIZE = 64;
 
     //TODO: Try using WINDOW_WIDTH here?
-    public const int CHUNK_TICK_RADIUS = 128;
+    public const int CHUNK_TICK_RADIUS = 192;
     public const int CHUNK_TICK_RADIUS_SQUARED = CHUNK_TICK_RADIUS * CHUNK_TICK_RADIUS;
 
     //TODO: Try using WINDOW_WIDTH here?
-    public const int CHUNK_LOAD_RADIUS = 256;
+    public const int CHUNK_LOAD_RADIUS = 320;
     public const int CHUNK_LOAD_RADIUS_SQUARED = CHUNK_LOAD_RADIUS * CHUNK_LOAD_RADIUS;
 
     // How many seconds it takes for a chunk to unload, after it has left the load radius.
@@ -72,21 +72,21 @@ public static class Settings
 
     #region Debug draw settings
 
-    public const bool DRAW_CHUNK_BORDERS = true;
-    public const bool DRAW_CURSOR_POS = true;
-    public const bool DRAW_HOVERED_ELEMENT = true;
-    public const bool DRAW_DIRTY_RECTS = true;
-    public const bool FLASH_DIRTY_CHUNKS = true;
-    public const bool DRAW_CHUNK_LOAD_RADIUS = true;
-    public const bool DRAW_CHUNK_TICK_RADIUS = true;
-    public const bool DRAW_RANDOM_TICKS = true;
+    public static bool DrawCursorPos = false;
+    public static bool DrawCursorHoveredElement = false;
+    public static bool DrawChunkBorders = false;
+    public static bool DrawDirtyRects = false;
+    public static bool FlashDirtyChunks = false;
+    public static bool DrawChunkLoadRadius = false;
+    public static bool DrawChunkTickRadius = false;
+    public static bool DrawRandomTicks = false;
 
     #endregion
 
 
     #region Camera settings
 
-    public const float CAMERA_MOVEMENT_SPEED = 200;
+    public static float CameraMovementSpeed = 150;
 
     #endregion
 }

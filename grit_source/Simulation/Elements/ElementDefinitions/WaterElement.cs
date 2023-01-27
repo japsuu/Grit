@@ -21,12 +21,11 @@ public class WaterElement : Element
         int rightX = worldRelativeX + 1;
         
         // If at the bottom of the world, replace cell with air.
-        //WARN: 500 is for debug.
-        if (belowY >= 500)
-        {
-            simulation.SetElementAt(worldRelativeX, worldRelativeY, new AirElement(worldRelativeX, worldRelativeY));
-            return (newX, newY);
-        }
+        //if (belowY >= 500)
+        //{
+        //    simulation.SetElementAt(worldRelativeX, worldRelativeY, new AirElement(worldRelativeX, worldRelativeY));
+        //    return (newX, newY);
+        //}
 
         // Below cell.
         if (simulation.GetElementAt(worldRelativeX, belowY).GetForm() == ElementForm.Gas)

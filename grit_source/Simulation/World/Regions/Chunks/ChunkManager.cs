@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using Microsoft.Xna.Framework;
 
 namespace Grit.Simulation.World.Regions.Chunks;
@@ -11,7 +10,6 @@ public class ChunkManager
     public readonly List<Chunk> CurrentlyLoadedChunks;
     public readonly List<Chunk> CurrentlyTickingChunks;
     
-    private readonly Simulation simulation;
     private readonly Dictionary<Point, Chunk> currentlyLoadedChunkMapping;
     private readonly Dictionary<Point, Chunk> currentlyTickingChunkMapping;
 
@@ -26,10 +24,9 @@ public class ChunkManager
     }
 
 
-    public ChunkManager(Simulation simulation)
+    public ChunkManager()
     {
         halfAChunkSize = Settings.WORLD_CHUNK_SIZE / 2;
-        this.simulation = simulation;
         currentlyLoadedChunkMapping = new Dictionary<Point, Chunk>();
         currentlyTickingChunkMapping = new Dictionary<Point, Chunk>();
         CurrentlyLoadedChunks = new List<Chunk>();
@@ -37,7 +34,7 @@ public class ChunkManager
     }
 
 
-    public void Update()
+    public void FixedUpdate()
     {
         // Unload old chunks
         for (int i = 0; i < CurrentlyLoadedChunks.Count; i++)
@@ -131,7 +128,7 @@ public class ChunkManager
     private Chunk LoadChunkAt(Point worldPosition)
     {
         // TODO: Check if chunk exists on disk. If yes, load from disk, if no, generate.
-        Chunk chunk = new(worldPosition, Settings.WORLD_CHUNK_SIZE, simulation);
+        Chunk chunk = ChunkFactory.GenerateChunk(worldPosition);
         
         currentlyLoadedChunkMapping.Add(worldPosition, chunk);
         CurrentlyLoadedChunks.Add(chunk);

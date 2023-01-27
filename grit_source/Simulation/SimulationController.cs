@@ -1,12 +1,14 @@
 ﻿
 using System;
-using System.Diagnostics;
 using Grit.Simulation.Elements.ElementDefinitions;
 using Grit.Simulation.Rendering;
+using Grit.Simulation.World.Regions.Chunks;
+using ImGuiNET;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended.Input;
+using MonoGame.ImGui.Standard;
 
 namespace Grit.Simulation;
 
@@ -16,20 +18,27 @@ namespace Grit.Simulation;
 public class SimulationController
 {
     private readonly Simulation simulation;
-
+    private readonly SimulationRenderer renderer;
+    private readonly ChunkManager chunkManager;
     
+    private float previousScrollValue;
     private bool isSnowingToggled;
 
     #region PUBLIC METHODS
 
     public SimulationController()
     {
-        simulation = new Simulation();
+        chunkManager = new ChunkManager();
+        simulation = new Simulation(chunkManager);
+        renderer = new SimulationRenderer(simulation, chunkManager);
+        ChunkFactory.Initialize(simulation);
     }
 
     public void Update()
     {
         HandleInput();
+        
+        UpdateCamera();
 
         if (isSnowingToggled)
             SpawnDebugSnow();
@@ -37,13 +46,48 @@ public class SimulationController
 
     public void FixedUpdate()
     {
+        chunkManager.FixedUpdate();
+        
         simulation.FixedUpdate();
+        
+        renderer.FixedUpdate();
     }
 
 
-    public void Draw(SpriteBatch spriteBatch, Matrix cameraMatrix)
+    public void Draw(SpriteBatch spriteBatch, ImGUIRenderer imGuiRenderer, Matrix cameraMatrix)
     {
-        simulation.Draw(spriteBatch, cameraMatrix);
+        // Camera matrix
+        spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: cameraMatrix);
+
+        renderer.DrawWithMatrix(spriteBatch);
+
+        spriteBatch.End();
+
+        // No camera matrix
+        spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+
+        renderer.DrawWithoutMatrix(spriteBatch);
+
+        spriteBatch.End();
+        
+        
+        // ImGUI
+        imGuiRenderer.BeginLayout(Globals.Time);
+        
+        ImGui.Checkbox("Draw Chunk Borders", ref Settings.DrawChunkBorders);
+        ImGui.Checkbox("Draw Cursor Pos", ref Settings.DrawCursorPos);
+        ImGui.Checkbox("Draw Cursor Hovered Element", ref Settings.DrawCursorHoveredElement);
+        ImGui.Checkbox("Draw Dirty Rects", ref Settings.DrawDirtyRects);
+        ImGui.Checkbox("Flash Dirty Chunks", ref Settings.FlashDirtyChunks);
+        ImGui.Checkbox("Draw Chunk Load Radius", ref Settings.DrawChunkLoadRadius);
+        ImGui.Checkbox("Draw Chunk Tick Radius", ref Settings.DrawChunkTickRadius);
+        ImGui.Checkbox("Draw Random Ticks", ref Settings.DrawRandomTicks);
+        ImGui.Spacing();
+        ImGui.DragFloat("Camera speed", ref Settings.CameraMovementSpeed, 1f, 5f, 1000f);
+
+        renderer.DrawImGui(imGuiRenderer);
+
+        imGuiRenderer.EndLayout();
     }
     
 
@@ -72,47 +116,94 @@ public class SimulationController
 
     private void HandleInput()
     {
-        Point mouseWorldPos = InputManager.MousePixelWorldPosition;
-
-        // Creating Elements with mouse input
-        if (Grit.ScreenBounds.Contains(InputManager.Mouse.Position))
+        if (!ImGui.GetIO().WantCaptureMouse)
         {
-            if(InputManager.IsMouseButtonDown(MouseButton.Left))
-                simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new SandElement(mouseWorldPos.X, mouseWorldPos.Y));
+            Point mouseWorldPos = InputManager.MousePixelWorldPosition;
+
+            // Creating Elements with mouse input
+            if (Grit.ScreenBounds.Contains(InputManager.Mouse.Position))
+            {
+                if(InputManager.IsMouseButtonDown(MouseButton.Left))
+                    simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new SandElement(mouseWorldPos.X, mouseWorldPos.Y));
             
-            if(InputManager.IsMouseButtonDown(MouseButton.Right))
-                simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new StoneElement(mouseWorldPos.X, mouseWorldPos.Y));
+                if(InputManager.IsMouseButtonDown(MouseButton.Right))
+                    simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new StoneElement(mouseWorldPos.X, mouseWorldPos.Y));
             
-            if(InputManager.IsMouseButtonDown(MouseButton.Middle))
-                simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new WaterElement(mouseWorldPos.X, mouseWorldPos.Y));
+                if(InputManager.IsMouseButtonDown(MouseButton.Middle))
+                    simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new WaterElement(mouseWorldPos.X, mouseWorldPos.Y));
+            }
         }
         
-        
-        // Keyboard input
-        if (InputManager.WasKeyJustUp(Keys.X))
+        if (!ImGui.GetIO().WantCaptureKeyboard)
         {
-            isSnowingToggled = !isSnowingToggled;
+            // Keyboard input
+            if (InputManager.WasKeyJustUp(Keys.X))
+            {
+                isSnowingToggled = !isSnowingToggled;
+            }
+
+            if (InputManager.IsKeyDown(Keys.C))
+            {
+                simulation.ForceCleanAll();
+            }
+
+            if (InputManager.IsKeyDown(Keys.V))
+            {
+                simulation.ForceDirtyAll();
+            }
+
+            if (InputManager.WasKeyJustUp(Keys.Multiply))
+            {
+                Grit.Instance.ChangeTargetFps(5);
+            }
+
+            if (InputManager.WasKeyJustUp(Keys.Divide))
+            {
+                Grit.Instance.ChangeTargetFps(-5);
+            }
+        }
+    }
+    
+    private void UpdateCamera()
+    {
+        Grit.MainCamera.Move(GetCameraMovementDirection() * Settings.CameraMovementSpeed * Globals.FrameLengthSeconds);
+
+        // Logarithmic zoom gang.
+        if (!ImGui.GetIO().WantCaptureMouse)
+        {
+            if (previousScrollValue < Mouse.GetState().ScrollWheelValue)
+                Grit.MainCamera.ZoomIn(Grit.MainCamera.Zoom * 10f * Globals.FrameLengthSeconds);
+            else if (previousScrollValue > Mouse.GetState().ScrollWheelValue)
+                Grit.MainCamera.ZoomOut(Grit.MainCamera.Zoom * 10f * Globals.FrameLengthSeconds);
+
+            previousScrollValue = Mouse.GetState().ScrollWheelValue;
         }
 
-        if (InputManager.IsKeyDown(Keys.C))
-        {
-            simulation.ForceCleanAll();
-        }
+        Globals.PlayerPosition = Grit.MainCamera.Center;
+    }
 
-        if (InputManager.IsKeyDown(Keys.V))
-        {
-            simulation.ForceDirtyAll();
-        }
+    private static Vector2 GetCameraMovementDirection()
+    {
+        Vector2 movementDirection = Vector2.Zero;
 
-        if (InputManager.WasKeyJustUp(Keys.Multiply))
-        {
-            Grit.Instance.ChangeTargetFps(5);
-        }
+        if (ImGui.GetIO().WantCaptureKeyboard)
+            return movementDirection;
 
-        if (InputManager.WasKeyJustUp(Keys.Divide))
-        {
-            Grit.Instance.ChangeTargetFps(-5);
-        }
+        KeyboardState state = Keyboard.GetState();
+
+        if (state.IsKeyDown(Keys.Down) || state.IsKeyDown(Keys.S))
+            movementDirection += Vector2.UnitY;
+
+        if (state.IsKeyDown(Keys.Up) || state.IsKeyDown(Keys.W))
+            movementDirection -= Vector2.UnitY;
+
+        if (state.IsKeyDown(Keys.Left) || state.IsKeyDown(Keys.A))
+            movementDirection -= Vector2.UnitX;
+
+        if (state.IsKeyDown(Keys.Right) || state.IsKeyDown(Keys.D))
+            movementDirection += Vector2.UnitX;
+
+        return movementDirection;
     }
 
     #endregion
