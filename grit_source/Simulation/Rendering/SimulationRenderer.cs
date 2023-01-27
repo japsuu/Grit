@@ -1,4 +1,5 @@
 ﻿
+using System;
 using System.Diagnostics;
 using Grit.Simulation.Elements;
 using Grit.Simulation.World.Regions.Chunks;
@@ -10,10 +11,14 @@ namespace Grit.Simulation.Rendering;
 
 public class SimulationRenderer
 {
-    private string objectUnderCursor;
+    private const float DIRTY_CHUNK_FLASH_DELAY = 0.5f;
 
     private readonly Simulation simulation;
     private readonly ChunkManager chunkManager;
+
+    private string objectUnderCursor;
+    private float dirtyChunkFlashTimer;
+    private bool dirtyChunkShouldFlash;
 
 
     public SimulationRenderer(Simulation simulation, ChunkManager chunkManager)
@@ -21,17 +26,23 @@ public class SimulationRenderer
         this.simulation = simulation;
         this.chunkManager = chunkManager;
     }
-
-
-    /// <summary>
-    /// Should be called at the end of Update().
-    /// </summary>
-    public void Update()
+    
+    
+    public void FixedUpdate()
     {
         for (int i = 0; i < chunkManager.CurrentlyLoadedChunks.Count; i++)
         {
             chunkManager.CurrentlyLoadedChunks[i].Render();
         }
+        
+        if (dirtyChunkFlashTimer <= 0)
+        {
+            dirtyChunkFlashTimer = DIRTY_CHUNK_FLASH_DELAY;
+            dirtyChunkShouldFlash = !dirtyChunkShouldFlash;
+        }
+        
+        if(Settings.FLASH_DIRTY_CHUNKS)
+            dirtyChunkFlashTimer -= Globals.FixedFrameLengthSeconds;
     }
 
     
@@ -40,30 +51,59 @@ public class SimulationRenderer
     /// </summary>
     public void DrawWorld(SpriteBatch spriteBatch)
     {
-        for (int i = 0; i < chunkManager.CurrentlyLoadedChunks.Count; i++)
+        foreach (Chunk chunk in chunkManager.CurrentlyLoadedChunks)
         {
-            // Draw world
-            spriteBatch.Draw(chunkManager.CurrentlyLoadedChunks[i].Canvas, chunkManager.CurrentlyLoadedChunks[i].Rectangle, Color.White);
+            // Draw the chunk
+            spriteBatch.Draw(chunk.Canvas, chunk.Rectangle, Color.White);
             
             // Draw chunk borders
             if (Settings.DRAW_CHUNK_BORDERS)
             {
-                Color color = chunkManager.CurrentlyLoadedChunks[i].GetDebugRenderColor();
-                spriteBatch.DrawRectangle(chunkManager.CurrentlyLoadedChunks[i].Rectangle, color, 1f);
+                DrawChunkBorders(chunk, spriteBatch);
             }
             
-            // Debug draw chunk lifetimes:
+            // Debug draw chunk lifetime:
             //spriteBatch.DrawString(Grit.DebugFont, chunkManager.CurrentlyLoadedChunks[i].DebugLifetime.ToString(), chunkManager.CurrentlyLoadedChunks[i].Rectangle.Center.ToVector2(), Color.Blue);
+            
+            // Draw random ticks
+            if (Settings.DRAW_RANDOM_TICKS && chunk.State == Chunk.LoadState.Ticking)
+            {
+                int chunkHeight = chunk.Rectangle.Height;
+                int chunkWidth = chunk.Rectangle.Width;
+                Point chunkPosition = chunk.Rectangle.Location;
+                
+                for (int y = 0; y < chunkHeight; y++)
+                {
+                    for (int x = 0; x < chunkWidth; x++)
+                    {
+                        int index = x + y * chunkWidth;
+                        if (chunk.RandomTickSteppedCells[index])
+                        {
+                            RectangleF rect = new(chunkPosition.X + x, chunkPosition.Y + y, 1, 1);
+                            spriteBatch.DrawRectangle(rect, Color.Red, 2f);
+                        }
+                    }
+                }
+            }
             
             // Draw dirty rects
             if (Settings.DRAW_DIRTY_RECTS)
             {
-                RectangleF dirtyRect = chunkManager.CurrentlyLoadedChunks[i].GetDebugDirtyRect();
-                if (!dirtyRect.IsEmpty)
-                    spriteBatch.DrawRectangle(dirtyRect, Color.Red, 1f);
+                if (!chunk.DirtyRect.IsEmpty)
+                    spriteBatch.DrawRectangle(chunk.DirtyRect, Color.Red, 1f);
             }
         }
-        
+
+        if (Settings.DRAW_CHUNK_LOAD_RADIUS)
+        {
+            spriteBatch.DrawCircle(Globals.PlayerPosition, Settings.CHUNK_LOAD_RADIUS, 12, Color.Orange);
+        }
+
+        if (Settings.DRAW_CHUNK_TICK_RADIUS)
+        {
+            spriteBatch.DrawCircle(Globals.PlayerPosition, Settings.CHUNK_TICK_RADIUS, 12, Color.Yellow);
+        }
+
         spriteBatch.DrawCircle(Globals.PlayerPosition, 2, 8, Color.Lime);
     }
 
@@ -91,5 +131,27 @@ public class SimulationRenderer
             spriteBatch.DrawRectangle(new Vector2(0, 0), new Size2(Settings.WINDOW_WIDTH, 1), Color.Blue, 20f);
             spriteBatch.DrawString(Grit.DebugFont, objectUnderCursor, new Vector2(5, 5), Color.Red);
         }
+    }
+
+    private void DrawChunkBorders(Chunk chunk, SpriteBatch spriteBatch)
+    {
+        Color color = chunk.State switch
+        {
+            Chunk.LoadState.Ticking => Color.Yellow,
+            Chunk.LoadState.Loaded => Color.Orange,
+            Chunk.LoadState.Unloading => Color.Red * (chunk.Lifetime / Settings.UNLOADED_CHUNK_LIFETIME),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        float thickness = 1f;
+          
+        // Flash dirty chunks
+        if (Settings.FLASH_DIRTY_CHUNKS && chunk.IsDirty && dirtyChunkShouldFlash)
+        {
+            color = Color.Red;
+            thickness = 2f;
+        }
+        
+        spriteBatch.DrawRectangle(chunk.Rectangle, color, thickness);
     }
 }

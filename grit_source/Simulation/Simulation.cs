@@ -35,7 +35,7 @@ public class Simulation
     {
         HandleUpdateSimulation();
         
-        renderer.Update();
+        renderer.FixedUpdate();
     }
 
 
@@ -60,7 +60,7 @@ public class Simulation
         // Figure out the chunk at given position
         Point chunkPosition = SnapPositionToChunkGrid(worldRelativeX, worldRelativeY);
 
-        if (chunkManager.GetChunkAt(chunkPosition, out NewChunk chunk))
+        if (chunkManager.GetChunkAt(chunkPosition, out Chunk chunk))
         {
             (int chunkRelativeX, int chunkRelativeY) = GetPositionInsideContainingChunk(worldRelativeX, worldRelativeY);
 
@@ -75,7 +75,7 @@ public class Simulation
     }
 
 
-    public Element GetElementAt(int worldRelativeX, int worldRelativeY, out NewChunk containingChunk)
+    public Element GetElementAt(int worldRelativeX, int worldRelativeY, out Chunk containingChunk)
     {
         // Figure out the chunk at given position
         Point chunkPosition = SnapPositionToChunkGrid(worldRelativeX, worldRelativeY);
@@ -100,7 +100,7 @@ public class Simulation
         // Figure out the chunk at given position
         Point chunkPosition = SnapPositionToChunkGrid(worldRelativeX, worldRelativeY);
 
-        if (chunkManager.GetChunkAt(chunkPosition, out NewChunk chunk))
+        if (chunkManager.GetChunkAt(chunkPosition, out Chunk chunk))
         {
             (int chunkRelativeX, int chunkRelativeY) = GetPositionInsideContainingChunk(worldRelativeX, worldRelativeY);
             
@@ -138,7 +138,7 @@ public class Simulation
         Point chunkPosition1 = SnapPositionToChunkGrid(x1, y1);
         Point chunkPosition2 = SnapPositionToChunkGrid(x2, y2);
 
-        if (chunkManager.GetChunkAt(chunkPosition1, out NewChunk chunk1) && chunkManager.GetChunkAt(chunkPosition2, out NewChunk chunk2))
+        if (chunkManager.GetChunkAt(chunkPosition1, out Chunk chunk1) && chunkManager.GetChunkAt(chunkPosition2, out Chunk chunk2))
         {
             // Swap operations
             (int chunkRelativeX1, int chunkRelativeY1) = GetPositionInsideContainingChunk(x1, y1);
@@ -170,7 +170,7 @@ public class Simulation
     {
         // Convert world position to a chunk's position
         Point chunkToDirtyPosition = SnapPositionToChunkGrid(worldX, worldY);
-        if (chunkManager.GetChunkAt(chunkToDirtyPosition, out NewChunk chunkToDirty))
+        if (chunkManager.GetChunkAt(chunkToDirtyPosition, out Chunk chunkToDirty))
         {
             // Convert world position to a chunk relative position
             (int chunkRelativeX, int chunkRelativeY) = GetPositionInsideContainingChunk(worldX, worldY);
@@ -188,7 +188,7 @@ public class Simulation
     {
         // Convert world position to a chunk's position
         Point chunkPosition = SnapPositionToChunkGrid(worldX, worldY);
-        if (chunkManager.GetChunkAt(chunkPosition, out NewChunk chunkToDirty))
+        if (chunkManager.GetChunkAt(chunkPosition, out Chunk chunkToDirty))
         {
             // Convert world position to a chunk relative position
             (int chunkRelativeX, int chunkRelativeY) = GetPositionInsideContainingChunk(worldX, worldY);
@@ -220,7 +220,7 @@ public class Simulation
     /// </summary>
     public void ForceDirtyAll()
     {
-        foreach (NewChunk c in chunkManager.CurrentlyTickingChunks)
+        foreach (Chunk c in chunkManager.CurrentlyTickingChunks)
         {
             c.SetEverythingDirty();
         }
@@ -232,7 +232,7 @@ public class Simulation
     /// </summary>
     public void ForceCleanAll()
     {
-        foreach (NewChunk c in chunkManager.CurrentlyTickingChunks)
+        foreach (Chunk c in chunkManager.CurrentlyTickingChunks)
         {
             c.SetEverythingClean();
         }

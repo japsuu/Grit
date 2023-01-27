@@ -87,6 +87,8 @@ public class Grit : Game
 
         RandomFactory.Initialize(123456789);
 
+        // Center the camera to the 0,0 of the world.
+        MainCamera.Position = -MainCamera.Center;
         Globals.PlayerPosition = MainCamera.Center;
         
         simulationController = new SimulationController();

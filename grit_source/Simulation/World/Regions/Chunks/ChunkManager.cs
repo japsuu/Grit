@@ -8,19 +8,19 @@ namespace Grit.Simulation.World.Regions.Chunks;
 public class ChunkManager
 {
     // NOTE: These Lists could later be converted into HashSets for better performance, if needed.
-    public readonly List<NewChunk> CurrentlyLoadedChunks;
-    public readonly List<NewChunk> CurrentlyTickingChunks;
+    public readonly List<Chunk> CurrentlyLoadedChunks;
+    public readonly List<Chunk> CurrentlyTickingChunks;
     
     private readonly Simulation simulation;
-    private readonly Dictionary<Point, NewChunk> currentlyLoadedChunkMapping;
-    private readonly Dictionary<Point, NewChunk> currentlyTickingChunkMapping;
+    private readonly Dictionary<Point, Chunk> currentlyLoadedChunkMapping;
+    private readonly Dictionary<Point, Chunk> currentlyTickingChunkMapping;
 
     private readonly int halfAChunkSize;
 
     
     private bool IsChunkCurrentlyTicking(Point chunkPos) => currentlyTickingChunkMapping.ContainsKey(chunkPos);
     
-    public bool GetChunkAt(Point worldPosition, out NewChunk chunk)
+    public bool GetChunkAt(Point worldPosition, out Chunk chunk)
     {
         return currentlyLoadedChunkMapping.TryGetValue(worldPosition, out chunk);
     }
@@ -30,10 +30,10 @@ public class ChunkManager
     {
         halfAChunkSize = Settings.WORLD_CHUNK_SIZE / 2;
         this.simulation = simulation;
-        currentlyLoadedChunkMapping = new Dictionary<Point, NewChunk>();
-        currentlyTickingChunkMapping = new Dictionary<Point, NewChunk>();
-        CurrentlyLoadedChunks = new List<NewChunk>();
-        CurrentlyTickingChunks = new List<NewChunk>();
+        currentlyLoadedChunkMapping = new Dictionary<Point, Chunk>();
+        currentlyTickingChunkMapping = new Dictionary<Point, Chunk>();
+        CurrentlyLoadedChunks = new List<Chunk>();
+        CurrentlyTickingChunks = new List<Chunk>();
     }
 
 
@@ -87,7 +87,7 @@ public class ChunkManager
                 Point chunkPos = new(x, y);
 
                 // If loaded
-                if (currentlyLoadedChunkMapping.TryGetValue(chunkPos, out NewChunk loadedChunk))
+                if (currentlyLoadedChunkMapping.TryGetValue(chunkPos, out Chunk loadedChunk))
                 {
                     //bool shouldTick = Math.Sqrt(Math.Pow(Globals.PlayerPosition.x - x, 2) + Math.Pow(Globals.PlayerPosition.y - y, 2)) <= Settings.CHUNK_TICK_RADIUS;
                     bool shouldTick = (Globals.PlayerPosition.X - x - halfAChunkSize) * (Globals.PlayerPosition.X - x - halfAChunkSize) +
@@ -114,24 +114,24 @@ public class ChunkManager
     }
 
 
-    private void StartTickingChunk(NewChunk chunk)
+    private void StartTickingChunk(Chunk chunk)
     {
         currentlyTickingChunkMapping.Add(chunk.Rectangle.Location, chunk);
         CurrentlyTickingChunks.Add(chunk);
     }
     
     
-    private void StopTickingChunk(NewChunk chunk)
+    private void StopTickingChunk(Chunk chunk)
     {
         currentlyTickingChunkMapping.Remove(chunk.Rectangle.Location);
         CurrentlyTickingChunks.Remove(chunk);
     }
 
 
-    private NewChunk LoadChunkAt(Point worldPosition)
+    private Chunk LoadChunkAt(Point worldPosition)
     {
         // TODO: Check if chunk exists on disk. If yes, load from disk, if no, generate.
-        NewChunk chunk = new(worldPosition, Settings.WORLD_CHUNK_SIZE, simulation);
+        Chunk chunk = new(worldPosition, Settings.WORLD_CHUNK_SIZE, simulation);
         
         currentlyLoadedChunkMapping.Add(worldPosition, chunk);
         CurrentlyLoadedChunks.Add(chunk);
@@ -140,7 +140,7 @@ public class ChunkManager
     }
     
     
-    private void UnloadChunk(NewChunk chunk)
+    private void UnloadChunk(Chunk chunk)
     {
         CurrentlyLoadedChunks.Remove(chunk);
         CurrentlyTickingChunks.Remove(chunk);
@@ -155,9 +155,9 @@ public class ChunkManager
     {
         //TODO: Save all chunks to the disk
 
-        foreach (KeyValuePair<Point,NewChunk> valuePair in currentlyLoadedChunkMapping)
+        foreach (KeyValuePair<Point,Chunk> valuePair in currentlyLoadedChunkMapping)
         {
-            NewChunk chunk = valuePair.Value;
+            Chunk chunk = valuePair.Value;
             chunk.Dispose();
         }
     }

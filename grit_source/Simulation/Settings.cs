@@ -21,11 +21,6 @@ public static class Settings
     public const int FIXED_UPDATE_TARGET_TPS = 10;
 
     /// <summary>
-    /// If FPS is lower than this, Update is skipped for that frame.
-    /// </summary>
-    public const int UPDATE_MINIMUM_FPS = 10;
-
-    /// <summary>
     /// FixedUpdate calls are limited to this many times per Update call.
     /// </summary>
     public const int MAXIMUM_FIXED_UPDATES_PER_FRAME = 4;
@@ -81,6 +76,10 @@ public static class Settings
     public const bool DRAW_CURSOR_POS = true;
     public const bool DRAW_HOVERED_ELEMENT = true;
     public const bool DRAW_DIRTY_RECTS = true;
+    public const bool FLASH_DIRTY_CHUNKS = true;
+    public const bool DRAW_CHUNK_LOAD_RADIUS = true;
+    public const bool DRAW_CHUNK_TICK_RADIUS = true;
+    public const bool DRAW_RANDOM_TICKS = true;
 
     #endregion
 

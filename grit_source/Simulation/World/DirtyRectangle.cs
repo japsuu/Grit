@@ -1,5 +1,6 @@
 ﻿
 using System;
+using MonoGame.Extended;
 
 namespace Grit.Simulation.World;
 
@@ -16,6 +17,15 @@ public class DirtyRectangle
     public int MaxY;
     public int Width => MaxX - MinX;
     public int Height => MaxY - MinY;
+
+    public RectangleF AsRectangleF(int posX, int posY)
+    {
+        return new RectangleF(
+            posX + MinX, 
+            posY + MinY, 
+            Width + 1,
+            Height + 1);
+    }
 
     // Internal values used to determine dirty changes.
     private bool active;

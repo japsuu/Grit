@@ -8,7 +8,7 @@ using MonoGame.Extended;
 
 namespace Grit.Simulation.World.Regions.Chunks;
 
-public class NewChunk
+public class Chunk
 {
     public enum LoadState
     {
@@ -21,13 +21,17 @@ public class NewChunk
 
     public readonly Rectangle Rectangle;
 
-    public bool ReadyToUnload => lifetime <= 0f;
+    public RectangleF DirtyRect => dirtyRectangle.AsRectangleF(Rectangle.Location.X, Rectangle.Location.Y);
 
     public bool IsDirty => dirtyRectangle.Active;
 
-    private LoadState state;
+    public float Lifetime { get; private set; }
 
-    private float lifetime;
+    public bool ReadyToUnload => Lifetime <= 0f;
+
+    public LoadState State { get; private set; }
+    
+    public readonly BitArray RandomTickSteppedCells;
     
     private readonly Color[] colorBuffer;
     private readonly Element[] cells;
@@ -36,8 +40,7 @@ public class NewChunk
     private readonly BitArray steppedCells;
     private readonly DirtyRectangle dirtyRectangle;
 
-
-    public NewChunk(Point position, int dimensions, Simulation host)
+    public Chunk(Point position, int dimensions, Simulation host)
     {
         Rectangle = new Rectangle(position.X, position.Y, dimensions, dimensions);
         simulation = host;
@@ -47,45 +50,31 @@ public class NewChunk
         steppedCells = new BitArray(dimensions * dimensions);
         dirtyRectangle = new DirtyRectangle();
         Canvas = new Texture2D(Grit.Graphics, dimensions, dimensions);
+        
+        if(Settings.DRAW_RANDOM_TICKS)
+            RandomTickSteppedCells = new BitArray(dimensions * dimensions);
 
         InitializeShuffledIndexes();
         
         ShuffleIndexArray();
         
         InitializeContents();
-        
-        //KeepAlive();
-    }
-
-    public Color GetDebugRenderColor()
-    {
-        if (IsDirty)
-            return Color.Orange;
-        
-        return state switch
-        {
-            LoadState.Ticking => Color.Green,
-            LoadState.Loaded => Color.Yellow,
-            LoadState.Unloading => Color.Red * (lifetime / Settings.UNLOADED_CHUNK_LIFETIME),
-            _ => throw new ArgumentOutOfRangeException()
-        };
     }
 
 
     // Called by ChunkLoader
     public void KeepAlive()
     {
-        lifetime = Settings.UNLOADED_CHUNK_LIFETIME;
-        state = LoadState.Loaded;
+        Lifetime = Settings.UNLOADED_CHUNK_LIFETIME;
+        State = LoadState.Loaded;
     }
 
 
     // Called by ChunkLoader
     public void DecrementLifetime()
     {
-        //System.Diagnostics.Debug.WriteLine($"DecrementLifetime ({lifetime} -> {lifetime -= Globals.FixedUpdateDeltaTime})!");
-        lifetime -= Globals.FixedFrameLengthSeconds;
-        state = LoadState.Unloading;
+        Lifetime -= Globals.FixedFrameLengthSeconds;
+        State = LoadState.Unloading;
     }
 
 
@@ -101,7 +90,7 @@ public class NewChunk
     
     public void ProcessTick()
     {
-        state = LoadState.Ticking;
+        State = LoadState.Ticking;
         steppedCells.SetAll(false);
         
         if (dirtyRectangle.Active)
@@ -145,6 +134,9 @@ public class NewChunk
     /// </summary>
     public void ProcessRandomTick()
     {
+        if(Settings.DRAW_RANDOM_TICKS)
+            RandomTickSteppedCells.SetAll(false);
+            
         for (int i = 0; i < Settings.RANDOM_TICKS_PER_FRAME; i++)
         {
             (int x, int y) = RandomFactory.RandomPosInChunk();
@@ -157,6 +149,9 @@ public class NewChunk
             // If HandleStep creates a new cell/causes movement, dirtying will be handled internally.
             (int newX, int newY) = cells[index].RandomTick(simulation, x, y);
             
+            if(Settings.DRAW_RANDOM_TICKS)
+                RandomTickSteppedCells.Set(index, true);
+            
             simulation.SetSteppedAt(newX, newY);
         }
     }
@@ -167,24 +162,12 @@ public class NewChunk
         Canvas.SetData(colorBuffer, 0, Rectangle.Width * Rectangle.Height);
     }
 
-    
-    public RectangleF GetDebugDirtyRect()
+    public Element GetElementAt(int chunkRelativeX, int chunkRelativeY)
     {
-        return new RectangleF(
-            Rectangle.X + dirtyRectangle.MinX, 
-            Rectangle.Y + dirtyRectangle.MinY, 
-            dirtyRectangle.Width + 1,
-            dirtyRectangle.Height + 1);
+        return cells[chunkRelativeX + chunkRelativeY * Rectangle.Width];
     }
 
 
-    // private Element this[int index]
-    // {
-    //     get => cells[index];
-    //     set => cells[index] = value;
-    // }
-
-    
     public void SetDirtyAt(int x, int y)
     {
         dirtyRectangle.SetDirtyAt(x, y);
@@ -199,7 +182,7 @@ public class NewChunk
     }
 
     
-    public void SwapElements(int x, int y, NewChunk otherChunk, int otherX, int otherY)
+    public void SwapElements(int x, int y, Chunk otherChunk, int otherX, int otherY)
     {
         int chunkRelativeIndex = x + y * Rectangle.Width;
         int otherChunkRelativeIndex = otherX + otherY * Rectangle.Width;
@@ -211,17 +194,6 @@ public class NewChunk
 
     private void InitializeContents()
     {
-        // for (int x = 0; x < Rectangle.Width; x++)
-        // {
-        //     for (int y = 0; y < Rectangle.Height; y++)
-        //     {
-        //         int index = x + y * Rectangle.Width;
-        //         
-        //         cells[index] = new AirElement(x, y);
-        //         colorBuffer[index] = cells[index].GetColor();
-        //     }
-        // }
-        // return;
         for (int x = 0; x < Rectangle.Width; x++)
         {
             for (int y = 0; y < Rectangle.Height; y++)
@@ -230,20 +202,7 @@ public class NewChunk
                 int worldX = Rectangle.X + x;
                 int worldY = Rectangle.Y + y;
                 
-                cells[index] = new StoneElement(worldX, worldY);
-                colorBuffer[index] = cells[index].GetColor();
-            }
-        }
-        return;
-        for (int x = 0; x < Rectangle.Width; x++)
-        {
-            for (int y = 0; y < Rectangle.Height; y++)
-            {
-                int index = x + y * Rectangle.Width;
-                int worldX = Rectangle.X + x;
-                int worldY = Rectangle.Y + y;
-                
-                if (y % 2 == 0 && x % 2 == 0)
+                if (Rectangle.Location.Y + y > 200)
                 {
                     cells[index] = new StoneElement(worldX, worldY);
                 }
@@ -253,13 +212,6 @@ public class NewChunk
                 }
                 
                 colorBuffer[index] = cells[index].GetColor();
-
-                // Generate some stone at the bottom of the world
-                // if (worldPosition.y + y >= 432)
-                // {
-                //     cells[index] = new StoneElement(x, y);
-                //     colorBuffer[index] = cells[index].GetColor();
-                // }
             }
         }
     }
@@ -310,11 +262,6 @@ public class NewChunk
             int k = RandomFactory.SeedlessRandom.Next(n--);
             (shuffledIndexes[n], shuffledIndexes[k]) = (shuffledIndexes[k], shuffledIndexes[n]);
         }
-    }
-
-    public Element GetElementAt(int chunkRelativeX, int chunkRelativeY)
-    {
-        return cells[chunkRelativeX + chunkRelativeY * Rectangle.Width];
     }
 
     public void Dispose()
