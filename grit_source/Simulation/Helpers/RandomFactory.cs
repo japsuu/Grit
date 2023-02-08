@@ -1,4 +1,5 @@
 ﻿using System;
+using Grit.Simulation.Helpers;
 using Microsoft.Xna.Framework;
 
 namespace Grit.Simulation;
@@ -68,5 +69,5 @@ public static class RandomFactory
     
     public static int RandomBetween(int minInclusive, int maxExclusive) => SeedlessRandom.Next(minInclusive, maxExclusive);
     
-    public static (int x, int y) RandomPosInWorld() => (SeedlessRandom.Next(0, Settings.WORLD_WIDTH), SeedlessRandom.Next(0, Settings.WORLD_HEIGHT));
+    public static (int x, int y) RandomPosInChunk() => (SeedlessRandom.Next(0, Settings.WORLD_CHUNK_SIZE), SeedlessRandom.Next(0, Settings.WORLD_CHUNK_SIZE));
 }

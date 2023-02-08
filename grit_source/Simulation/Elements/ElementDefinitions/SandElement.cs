@@ -1,5 +1,4 @@
-﻿using Grit.Simulation.World;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
 namespace Grit.Simulation.Elements.ElementDefinitions;
 
@@ -7,31 +6,21 @@ public class SandElement : Element
 {
     protected override Color InitialColor => RandomFactory.RandomColor(new Color(189, 148, 66, 255), new Color(255, 204, 102, 255));
     public override ushort Id => 1;
-    protected override ElementForm InitialForm => ElementForm.Solid;
+    protected override InteractionType InitialInteractionType => InteractionType.Solid;
 
     public SandElement(int x, int y) : base(x, y)
     {
     }
 
-    public override (int newX, int newY) Step(Element[] matrix, int x, int y, float deltaTime)
+    public override void Tick(Simulation simulation, int startX, int startY)
     {
-        int newX = x;
-        int newY = y;
-        int belowY = y + 1;
-
-        // If at the bottom of the world, replace cell with air.
-        if (belowY >= Settings.WORLD_HEIGHT)
-        {
-            WorldMatrix.SetElementAt(x, y, new AirElement(x, y));
-            return (newX, newY);
-        }
+        int belowY = startY + 1;
 
         // Below cell.
-        if (matrix[x + belowY * Settings.WORLD_WIDTH].GetForm() != ElementForm.Solid)
+        if (simulation.GetElementAt(startX, belowY).GetInteractionType() != InteractionType.Solid)
         {
-            WorldMatrix.SwapElementsAt(x, y, x, belowY);
-            newY = belowY;
-            return (newX, newY);
+            simulation.SwapElementsAt(startX, startY, startX, belowY, true, true);
+            return;
         }
 
         // Randomly choose whether to prioritize left or right update
@@ -39,50 +28,38 @@ public class SandElement : Element
         if (prioritizeLeft)
         {
             // Left bottom cell.
-            int leftX = x - 1;
-            if (leftX > -1 && matrix[leftX + belowY * Settings.WORLD_WIDTH].GetForm() != ElementForm.Solid)
+            int leftX = startX - 1;
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                WorldMatrix.SwapElementsAt(x, y, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
 
             // Right bottom cell.
-            int rightX = x + 1;
-            if (rightX < Settings.WORLD_WIDTH &&
-                matrix[rightX + belowY * Settings.WORLD_WIDTH].GetForm() != ElementForm.Solid)
+            int rightX = startX + 1;
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                WorldMatrix.SwapElementsAt(x, y, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
         }
         else
         {
             // Right bottom cell.
-            int rightX = x + 1;
-            if (rightX < Settings.WORLD_WIDTH &&
-                matrix[rightX + belowY * Settings.WORLD_WIDTH].GetForm() != ElementForm.Solid)
+            int rightX = startX + 1;
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                WorldMatrix.SwapElementsAt(x, y, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
 
             // Left bottom cell.
-            int leftX = x - 1;
-            if (leftX > -1 && matrix[leftX + belowY * Settings.WORLD_WIDTH].GetForm() != ElementForm.Solid)
+            int leftX = startX - 1;
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                WorldMatrix.SwapElementsAt(x, y, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
         }
-
-        return (newX, newY);
     }
 }

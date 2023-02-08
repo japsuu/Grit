@@ -1,5 +1,4 @@
-﻿using Grit.Simulation.World;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
 namespace Grit.Simulation.Elements.ElementDefinitions;
 
@@ -11,29 +10,26 @@ public class WaterElement : Element
 
     protected override Color InitialColor => Color.Aqua;
     public override ushort Id => 3;
-    protected override ElementForm InitialForm => ElementForm.Liquid;
+    protected override InteractionType InitialInteractionType => InteractionType.Liquid;
 
-    public override (int newX, int newY) Step(Element[] matrix, int x, int y, float deltaTime)
+    public override void Tick(Simulation simulation, int startX, int startY)
     {
-        int newX = x;
-        int newY = y;
-        int belowY = y + 1;
-        int leftX = x - 1;
-        int rightX = x + 1;
+        int belowY = startY + 1;
+        int leftX = startX - 1;
+        int rightX = startX + 1;
         
         // If at the bottom of the world, replace cell with air.
-        if (belowY >= Settings.WORLD_HEIGHT)
-        {
-            WorldMatrix.SetElementAt(x, y, new AirElement(x, y));
-            return (newX, newY);
-        }
+        //if (belowY >= 500)
+        //{
+        //    simulation.SetElementAt(worldRelativeX, worldRelativeY, new AirElement(worldRelativeX, worldRelativeY));
+        //    return (newX, newY);
+        //}
 
         // Below cell.
-        if (matrix[x + belowY * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+        if (simulation.GetElementAt(startX, belowY).GetInteractionType() == InteractionType.Gas)
         {
-            WorldMatrix.SwapElementsAt(x, y, x, belowY);
-            newY = belowY;
-            return (newX, newY);
+            simulation.SwapElementsAt(startX, startY, startX, belowY, true, true);
+            return;
         }
 
         // Randomly choose whether to prioritize left or right update
@@ -41,81 +37,67 @@ public class WaterElement : Element
         if (prioritizeLeft)
         {
             // Left bottom cell.
-            if (leftX > -1 && matrix[leftX + belowY * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
                     
             // Right bottom cell.
-            if (rightX < Settings.WORLD_WIDTH && matrix[rightX + belowY * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
         }
         else
         {
             // Right bottom cell.
-            if (rightX < Settings.WORLD_WIDTH && matrix[rightX + belowY * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
                     
             // Left bottom cell.
-            if (leftX > -1 && matrix[leftX + belowY * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
         }
 
         if (prioritizeLeft)
         {
             // Left cell.
-            if (leftX > -1 && matrix[leftX + y * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, leftX, y);
-                newX = leftX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, startY, true, true);
+                return;
             }
                     
             // Right cell.
-            if (rightX < Settings.WORLD_WIDTH && matrix[rightX + y * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, rightX, y);
-                newX = rightX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, startY, true, true);
+                return;
             }
         }
         else
         {
             // Right cell.
-            if (rightX < Settings.WORLD_WIDTH && matrix[rightX + y * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, rightX, y);
-                newX = rightX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, startY, true, true);
+                return;
             }
                     
             // Left cell.
-            if (leftX > -1 && matrix[leftX + y * Settings.WORLD_WIDTH].GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                WorldMatrix.SwapElementsAt(x, y, leftX, y);
-                newX = leftX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, startY, true, true);
+                return;
             }
         }
-        
-        return (newX, newY);
     }
 }

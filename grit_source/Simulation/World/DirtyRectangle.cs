@@ -1,54 +1,49 @@
 ﻿
 using System;
+using Grit.Simulation.Helpers;
+using MonoGame.Extended;
 
 namespace Grit.Simulation.World;
 
 /// <summary>
-/// Contains a single Dirty Rect.
+/// Double buffered dirty rectangle.
 /// </summary>
-public class DirtyChunk
+public class DirtyRectangle
 {
-
-    #region PUBLIC FIELDS
-
     // Dirty rect values, constructed at the end of a frame from the dirty changes.
-    public bool IsCurrentlyDirty;
-    public int DirtyRectMinX;
-    public int DirtyRectMinY;
-    public int DirtyRectMaxX;
-    public int DirtyRectMaxY;
+    public bool Active;
+    public int MinX;
+    public int MinY;
+    public int MaxX;
+    public int MaxY;
+    public int Width => MaxX - MinX;
+    public int Height => MaxY - MinY;
 
-    #endregion
-
-
-    #region PRIVATE FIELDS
+    public RectangleF AsRectangleF(int posX, int posY)
+    {
+        return new RectangleF(
+            posX + MinX, 
+            posY + MinY, 
+            Width + 1,
+            Height + 1);
+    }
 
     // Internal values used to determine dirty changes.
-    private bool internalIsDirty;
+    private bool active;
     private int internalMinX;
     private int internalMinY;
     private int internalMaxX;
     private int internalMaxY;
     
-    private readonly int chunkPosX;
-    private readonly int chunkPosY;
 
-    #endregion
-
-    
     #region PUBLIC METHODS
 
-    public DirtyChunk(int chunkPosX, int chunkPosY)
+    public DirtyRectangle()
     {
-        this.chunkPosX = chunkPosX;
-        this.chunkPosY = chunkPosY;
-        
         SetEverythingClean();
     }
 
-    /// <summary>
-    /// Sets the given position as dirty inside this chunk.
-    /// </summary>
+    
     public void SetDirtyAt(int x, int y)
     {
         // Resize the current dirty rect if needed.
@@ -57,13 +52,13 @@ public class DirtyChunk
         internalMaxX = Math.Max(internalMaxX, x);
         internalMaxY = Math.Max(internalMaxY, y);
 
-        internalIsDirty = true;
+        active = true;
     }
 
     /// <summary>
     /// Needs to be called after all the frame's updates are done.
     /// </summary>
-    public void ConstructDirtyRectangle()
+    public void Update()
     {
         ConstructDirtyRect();
         
@@ -73,11 +68,11 @@ public class DirtyChunk
     public void SetEverythingDirty()
     {
         // Dirty internally
-        internalIsDirty = true;
-        internalMinX = chunkPosX;
-        internalMinY = chunkPosY;
-        internalMaxX = chunkPosX + Settings.WORLD_CHUNK_SIZE - 1;
-        internalMaxY = chunkPosY + Settings.WORLD_CHUNK_SIZE - 1;
+        active = true;
+        internalMinX = 0;
+        internalMinY = 0;
+        internalMaxX = Settings.WORLD_CHUNK_SIZE - 1;
+        internalMaxY = Settings.WORLD_CHUNK_SIZE - 1;
         
         ConstructDirtyRect();
     }
@@ -96,7 +91,7 @@ public class DirtyChunk
 
     private void CleanInternally()
     {
-        internalIsDirty = false;
+        active = false;
         internalMinX = int.MaxValue;
         internalMinY = int.MaxValue;
         internalMaxX = int.MinValue;
@@ -105,11 +100,11 @@ public class DirtyChunk
 
     private void ConstructDirtyRect()
     {
-        IsCurrentlyDirty = internalIsDirty;
-        DirtyRectMinX = internalMinX;
-        DirtyRectMinY = internalMinY;
-        DirtyRectMaxX = internalMaxX;
-        DirtyRectMaxY = internalMaxY;
+        Active = active;
+        MinX = internalMinX;
+        MinY = internalMinY;
+        MaxX = internalMaxX;
+        MaxY = internalMaxY;
     }
 
     #endregion
