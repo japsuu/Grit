@@ -10,15 +10,13 @@ public class WaterElement : Element
 
     protected override Color InitialColor => Color.Aqua;
     public override ushort Id => 3;
-    protected override ElementForm InitialForm => ElementForm.Liquid;
+    protected override InteractionType InitialInteractionType => InteractionType.Liquid;
 
-    public override (int newX, int newY) Tick(Simulation simulation, int worldRelativeX, int worldRelativeY)
+    public override void Tick(Simulation simulation, int startX, int startY)
     {
-        int newX = worldRelativeX;
-        int newY = worldRelativeY;
-        int belowY = worldRelativeY + 1;
-        int leftX = worldRelativeX - 1;
-        int rightX = worldRelativeX + 1;
+        int belowY = startY + 1;
+        int leftX = startX - 1;
+        int rightX = startX + 1;
         
         // If at the bottom of the world, replace cell with air.
         //if (belowY >= 500)
@@ -28,11 +26,10 @@ public class WaterElement : Element
         //}
 
         // Below cell.
-        if (simulation.GetElementAt(worldRelativeX, belowY).GetForm() == ElementForm.Gas)
+        if (simulation.GetElementAt(startX, belowY).GetInteractionType() == InteractionType.Gas)
         {
-            simulation.SwapElementsAt(worldRelativeX, worldRelativeY, worldRelativeX, belowY);
-            newY = belowY;
-            return (newX, newY);
+            simulation.SwapElementsAt(startX, startY, startX, belowY, true, true);
+            return;
         }
 
         // Randomly choose whether to prioritize left or right update
@@ -40,81 +37,67 @@ public class WaterElement : Element
         if (prioritizeLeft)
         {
             // Left bottom cell.
-            if (simulation.GetElementAt(leftX, belowY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
                     
             // Right bottom cell.
-            if (simulation.GetElementAt(rightX, belowY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
         }
         else
         {
             // Right bottom cell.
-            if (simulation.GetElementAt(rightX, belowY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
                     
             // Left bottom cell.
-            if (simulation.GetElementAt(leftX, belowY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
         }
 
         if (prioritizeLeft)
         {
             // Left cell.
-            if (simulation.GetElementAt(leftX, worldRelativeY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, worldRelativeY);
-                newX = leftX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, startY, true, true);
+                return;
             }
                     
             // Right cell.
-            if (simulation.GetElementAt(rightX, worldRelativeY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, worldRelativeY);
-                newX = rightX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, startY, true, true);
+                return;
             }
         }
         else
         {
             // Right cell.
-            if (simulation.GetElementAt(rightX, worldRelativeY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(rightX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, worldRelativeY);
-                newX = rightX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, startY, true, true);
+                return;
             }
                     
             // Left cell.
-            if (simulation.GetElementAt(leftX, worldRelativeY).GetForm() == ElementForm.Gas)
+            if (simulation.GetElementAt(leftX, startY).GetInteractionType() == InteractionType.Gas)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, worldRelativeY);
-                newX = leftX;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, startY, true, true);
+                return;
             }
         }
-        
-        return (newX, newY);
     }
 }

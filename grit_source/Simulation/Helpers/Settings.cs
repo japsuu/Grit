@@ -1,8 +1,11 @@
 ﻿
-namespace Grit.Simulation;
+namespace Grit.Simulation.Helpers;
 
 public static class Settings
 {
+    public const int MIN_LOG_LEVEL = 0;
+    
+    
     #region Update settings
 
     /// <summary>
@@ -18,7 +21,7 @@ public static class Settings
     /// <summary>
     /// Dictates how many times per second the FixedUpdate-loop is ran.
     /// </summary>
-    public const int FIXED_UPDATE_TARGET_TPS = 10;
+    public const int FIXED_UPDATE_TARGET_TPS = 5;
 
     /// <summary>
     /// FixedUpdate calls are limited to this many times per Update call.
@@ -40,6 +43,8 @@ public static class Settings
 
     public const int WINDOW_WIDTH = 1280;
     public const int WINDOW_HEIGHT = 720;
+
+    public const float GRAVITY_CELLS_PER_SECOND = 9.81f;
 
 
     #region Chunk settings

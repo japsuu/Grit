@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using Grit.Simulation.Elements;
 using Grit.Simulation.Elements.ElementDefinitions;
+using Grit.Simulation.Helpers;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -35,7 +37,7 @@ public class Chunk
     
     private readonly Color[] colorBuffer;
     private readonly Element[] cells;
-    private readonly int[] shuffledIndexes;
+    private readonly int[,] shuffledIndexes;
     private readonly Simulation simulation;
     private readonly BitArray steppedCells;
     private readonly DirtyRectangle dirtyRectangle;
@@ -46,7 +48,7 @@ public class Chunk
         simulation = host;
         colorBuffer = new Color[dimensions * dimensions];
         cells = new Element[dimensions * dimensions];
-        shuffledIndexes = new int[dimensions];
+        shuffledIndexes = new int[dimensions, dimensions];
         steppedCells = new BitArray(dimensions * dimensions);
         dirtyRectangle = new DirtyRectangle();
         Canvas = new Texture2D(Grit.Graphics, dimensions, dimensions);
@@ -82,6 +84,7 @@ public class Chunk
 
     public void SetSteppedAt(int x, int y)
     {
+        Logger.Write(Logger.LogType.INFO, this, $"SetSteppedAt {x};{y}");
         steppedCells[x + y * Rectangle.Width] = true;
     }
 
@@ -93,30 +96,41 @@ public class Chunk
         
         if (dirtyRectangle.Active)
         {
-            // Loop the dirty rect bottom to top
-            for (int y = dirtyRectangle.MinY; y <= dirtyRectangle.MaxY; y++)
-            {    
-                //TODO: Implement random update order with pre-generated random values.
-                for (int x = dirtyRectangle.MinX; x <= dirtyRectangle.MaxX; x++)
+            //TODO: Remove the following debug flag:
+            // Whether or not to loop in random X order.
+            if (true)
+            {
+                // Loop the dirty rect bottom to top
+                int width = Rectangle.Width;
+                foreach ((int x, int y) in LoopDirtyRectangle())
                 {
-                    int index = x + y * Rectangle.Width;
-                    
+                    int index = x + y * width;
+                
                     // Skip if this cell has been stepped already.
                     if (steppedCells[index])
                         continue;
                                 
-                    // Skip if position outside the matrix. Happens when a cell at the edge of the matrix gets dirtied.
-                    // NOTE: Should not happen anymore, as we do not allow chunks to interact outside of them.
-                    //if (!IsIndexInsideCellMatrix(index))
-                    //    continue;
-                                
                     // Finally, handle the step for this cell.
                     //(int newX, int newY) = HandleStep(x, y, deltaTime);
-                    (int newX, int newY) = cells[index].Tick(simulation, Rectangle.X + x, Rectangle.Y + y);
-                    //TODO: Returns world position, implement SetStepped to Simulation.cs.
+                    cells[index].Tick(simulation, Rectangle.X + x, Rectangle.Y + y);
+                }
+            }
+            else
+            {
+                for (int y = dirtyRectangle.MinY; y <= dirtyRectangle.MaxY; y++)
+                {
+                    for (int x = dirtyRectangle.MinX; x <= dirtyRectangle.MaxX; x++)
+                    {
+                        int index = x + y * Rectangle.Width;
                     
-                    // Set the cell's new position as stepped, so we won't visit it again causing multiple updates per frame.
-                    simulation.SetSteppedAt(newX, newY);
+                        // Skip if this cell has been stepped already.
+                        if (steppedCells[index])
+                            continue;
+                                
+                        // Finally, handle the step for this cell.
+                        //(int newX, int newY) = HandleStep(x, y, deltaTime);
+                        cells[index].Tick(simulation, Rectangle.X + x, Rectangle.Y + y);
+                    }
                 }
             }
         }
@@ -140,17 +154,15 @@ public class Chunk
             (int x, int y) = RandomFactory.RandomPosInChunk();
 
             int index = x + y * Rectangle.Width;
-            if (steppedCells[index])
-                continue;
+            //if (steppedCells[index])
+            //    continue;
             
             // No need to manually set the random cell dirty, since we don't want consequent updates to happen.
             // If HandleStep creates a new cell/causes movement, dirtying will be handled internally.
-            (int newX, int newY) = cells[index].RandomTick(simulation, x, y);
+            bool wasTicked = cells[index].RandomTick(simulation, x, y);
             
             if(Settings.DrawRandomTicks)
                 RandomTickSteppedCells.Set(index, true);
-            
-            simulation.SetSteppedAt(newX, newY);
         }
     }
 
@@ -220,9 +232,12 @@ public class Chunk
     /// </summary>
     private void InitializeShuffledIndexes()
     {
-        for (int i = 0; i < shuffledIndexes.Length; i++)
+        for (int y = 0; y < shuffledIndexes.GetLength(1); y++)
         {
-            shuffledIndexes[i] = i;
+            for (int x = 0; x < shuffledIndexes.GetLength(0); x++)
+            {
+                shuffledIndexes[x, y] = x;
+            }
         }
     }
     
@@ -232,11 +247,15 @@ public class Chunk
     /// </summary>
     private void ShuffleIndexArray()
     {
-        int n = shuffledIndexes.Length;
-        while (n > 1)
+        int n = shuffledIndexes.GetLength(0);
+
+        for (int y = 0; y < shuffledIndexes.GetLength(1); y++)
         {
-            int k = RandomFactory.SeedlessRandom.Next(n--);
-            (shuffledIndexes[n], shuffledIndexes[k]) = (shuffledIndexes[k], shuffledIndexes[n]);
+            while (n > 1)
+            {
+                int k = RandomFactory.SeedlessRandom.Next(n--);
+                (shuffledIndexes[n, y], shuffledIndexes[k, y]) = (shuffledIndexes[k, y], shuffledIndexes[n, y]);
+            }
         }
     }
     
@@ -244,21 +263,60 @@ public class Chunk
     /// <summary>
     /// Shuffles the x-axis access indexes using the Fisher-Yates algorithm.
     /// </summary>
-    private void RegenerateAndShuffleXIndexes(int newLength)
+    private void RegenerateAndShuffleXIndexes(int width, int height)
     {
         // Regenerate
-        for (int i = 0; i < newLength; i++)
+        for (int y = 0; y < height; y++)
         {
-            shuffledIndexes[i] = i;
+            for (int x = 0; x < width; x++)
+            {
+                shuffledIndexes[x, y] = x;
+            }
         }
         
         // Shuffle
-        int n = newLength;
-        while (n > 1)
+        for (int y = 0; y < height; y++)
         {
-            // TODO: Use pregenerated random values instead of generating them on the fly.
-            int k = RandomFactory.SeedlessRandom.Next(n--);
-            (shuffledIndexes[n], shuffledIndexes[k]) = (shuffledIndexes[k], shuffledIndexes[n]);
+            int n = width;
+            while (n > 1)
+            {
+                // TODO: Use pregenerated random values instead of generating them on the fly.
+                int k = RandomFactory.SeedlessRandom.Next(n--);
+                (shuffledIndexes[n, y], shuffledIndexes[k, y]) = (shuffledIndexes[k, y], shuffledIndexes[n, y]);
+            }
+        }
+    }
+    
+    
+    /// <summary>
+    /// Shuffles the x-axis access indexes using the Fisher-Yates algorithm.
+    /// </summary>
+    private IEnumerable<(int x, int y)> LoopDirtyRectangle()
+    {
+        int width = dirtyRectangle.Width;
+        int height = dirtyRectangle.Height;
+        
+        // Regenerate
+        // Shuffle
+        for (int y = height; y >= 0; y--)
+        {
+            for (int x = 0; x <= width; x++)
+            {
+                shuffledIndexes[x, y] = x;
+            }
+            
+            int n = width;
+            while (n > 1)
+            {
+                // TODO: Use pregenerated random values instead of generating them on the fly.
+                int k = RandomFactory.SeedlessRandom.Next(n--);
+                (shuffledIndexes[n, y], shuffledIndexes[k, y]) = (shuffledIndexes[k, y], shuffledIndexes[n, y]);
+            }
+
+            for (int x = 0; x <= width; x++)
+            {
+                yield return (dirtyRectangle.MinX + shuffledIndexes[x, y], dirtyRectangle.MinY + y);
+            }
         }
     }
 

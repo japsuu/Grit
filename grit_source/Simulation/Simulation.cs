@@ -1,6 +1,7 @@
 ﻿
 using System;
 using Grit.Simulation.Elements;
+using Grit.Simulation.Helpers;
 using Grit.Simulation.World.Regions.Chunks;
 using Microsoft.Xna.Framework;
 
@@ -99,12 +100,12 @@ public class Simulation
         }
         else
         {
-            Logger.Write(Logger.LogType.ERROR, $"Tried to set element outside of loaded chunks (Cpos:{chunkPosition})!");
+            Logger.Write(Logger.LogType.ERROR, this, $"Tried to set element outside of loaded chunks (Cpos:{chunkPosition})!");
         }
     }
 
     
-    public void SwapElementsAt(int x1, int y1, int x2, int y2)
+    public void SwapElementsAt(int x1, int y1, int x2, int y2, bool set1Stepped = false, bool set2Stepped = false)
     {
         // Do not allow an cell to swap itself.
         if (x1 == x2 && y1 == y2)
@@ -121,6 +122,16 @@ public class Simulation
             (int chunkRelativeX1, int chunkRelativeY1) = GetPositionInsideContainingChunk(x1, y1);
             (int chunkRelativeX2, int chunkRelativeY2) = GetPositionInsideContainingChunk(x2, y2);
             chunk1.SwapElements(chunkRelativeX1, chunkRelativeY1, chunk2, chunkRelativeX2, chunkRelativeY2);
+
+            if (set1Stepped)
+            {
+                chunk1.SetSteppedAt(chunkRelativeX1, chunkRelativeY1);
+            }
+
+            if (set2Stepped)
+            {
+                chunk2.SetSteppedAt(chunkRelativeX2, chunkRelativeY2);
+            }
             
             // Updating the dirty rect:
             // Dirty the set elements and all (max 12, when diagonal swap) surrounding elements.
@@ -155,7 +166,7 @@ public class Simulation
         }
         else
         {
-            Logger.Write(Logger.LogType.ERROR, $"Tried to dirty element outside of loaded chunks (Cpos:{chunkToDirtyPosition})!");
+            Logger.Write(Logger.LogType.ERROR, this, $"Tried to dirty element outside of loaded chunks (Cpos:{chunkToDirtyPosition})!");
         }
     }
 
@@ -163,6 +174,7 @@ public class Simulation
     // Called by Chunks when they update an element, which ends up outside of the originating chunk.
     public void SetSteppedAt(int worldX, int worldY)
     {
+        Logger.Write(Logger.LogType.INFO, this, $"SetSteppedAt {worldX};{worldY}");
         // Convert world position to a chunk's position
         Point chunkPosition = SnapPositionToChunkGrid(worldX, worldY);
         if (chunkManager.GetChunkAt(chunkPosition, out Chunk chunkToDirty))

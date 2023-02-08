@@ -6,31 +6,21 @@ public class SandElement : Element
 {
     protected override Color InitialColor => RandomFactory.RandomColor(new Color(189, 148, 66, 255), new Color(255, 204, 102, 255));
     public override ushort Id => 1;
-    protected override ElementForm InitialForm => ElementForm.Solid;
+    protected override InteractionType InitialInteractionType => InteractionType.Solid;
 
     public SandElement(int x, int y) : base(x, y)
     {
     }
 
-    public override (int newX, int newY) Tick(Simulation simulation, int worldRelativeX, int worldRelativeY)
+    public override void Tick(Simulation simulation, int startX, int startY)
     {
-        int newX = worldRelativeX;
-        int newY = worldRelativeY;
-        int belowY = worldRelativeY + 1;
-
-        // If at the bottom of the world, replace cell with air.
-        //if (belowY >= 500)
-        //{
-        //    simulation.SetElementAt(worldRelativeX, worldRelativeY, new AirElement(worldRelativeX, worldRelativeY));
-        //    return (newX, newY);
-        //}
+        int belowY = startY + 1;
 
         // Below cell.
-        if (simulation.GetElementAt(worldRelativeX, belowY).GetForm() != ElementForm.Solid)
+        if (simulation.GetElementAt(startX, belowY).GetInteractionType() != InteractionType.Solid)
         {
-            simulation.SwapElementsAt(worldRelativeX, worldRelativeY, worldRelativeX, belowY);
-            newY = belowY;
-            return (newX, newY);
+            simulation.SwapElementsAt(startX, startY, startX, belowY, true, true);
+            return;
         }
 
         // Randomly choose whether to prioritize left or right update
@@ -38,48 +28,38 @@ public class SandElement : Element
         if (prioritizeLeft)
         {
             // Left bottom cell.
-            int leftX = worldRelativeX - 1;
-            if (simulation.GetElementAt(leftX, belowY).GetForm() != ElementForm.Solid)
+            int leftX = startX - 1;
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
 
             // Right bottom cell.
-            int rightX = worldRelativeX + 1;
-            if (simulation.GetElementAt(rightX, belowY).GetForm() != ElementForm.Solid)
+            int rightX = startX + 1;
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
         }
         else
         {
             // Right bottom cell.
-            int rightX = worldRelativeX + 1;
-            if (simulation.GetElementAt(rightX, belowY).GetForm() != ElementForm.Solid)
+            int rightX = startX + 1;
+            if (simulation.GetElementAt(rightX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, rightX, belowY);
-                newX = rightX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, rightX, belowY, true, true);
+                return;
             }
 
             // Left bottom cell.
-            int leftX = worldRelativeX - 1;
-            if (simulation.GetElementAt(leftX, belowY).GetForm() != ElementForm.Solid)
+            int leftX = startX - 1;
+            if (simulation.GetElementAt(leftX, belowY).GetInteractionType() != InteractionType.Solid)
             {
-                simulation.SwapElementsAt(worldRelativeX, worldRelativeY, leftX, belowY);
-                newX = leftX;
-                newY = belowY;
-                return (newX, newY);
+                simulation.SwapElementsAt(startX, startY, leftX, belowY, true, true);
+                return;
             }
         }
-
-        return (newX, newY);
     }
 }

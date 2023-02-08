@@ -1,15 +1,15 @@
 ﻿using System;
+using Grit.Simulation.Helpers;
 
 namespace Grit;
 
 public static class Logger
 {
-    public enum LogType
+    public enum LogType : byte
     {
-        INFO,
-        WARN,
-        ERROR,
-        SUCCESS
+        INFO = 0,
+        WARN = 1,
+        ERROR = 2
     }
     
     private static string Timestamp => DateTime.Now.ToString("dd/MM HH:mm:ss\t");
@@ -23,18 +23,21 @@ public static class Logger
             LogType.INFO => ConsoleColor.Blue,
             LogType.WARN => ConsoleColor.Yellow,
             LogType.ERROR => ConsoleColor.Red,
-            LogType.SUCCESS => ConsoleColor.Green,
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
     }
 
-    public static void Write(LogType type, string text)
+    public static void Write(LogType type, object caller, string text)
     {
-        Console.ForegroundColor = type.GetConsoleColor();
+        if((byte)type < Settings.MIN_LOG_LEVEL) return;
         
-        Console.Write($"{Timestamp}[{type.Tag()}]:");
-        Console.SetCursorPosition(32, Console.CursorTop);
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.Write($"{Timestamp}[{caller}.{type.Tag()}]:");
+        Console.WriteLine();
+        Console.SetCursorPosition(3, Console.CursorTop);
+        Console.ForegroundColor = type.GetConsoleColor();
         Console.WriteLine(text);
+        Console.WriteLine();
 
         Console.ResetColor();
     }

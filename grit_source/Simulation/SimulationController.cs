@@ -1,6 +1,8 @@
 ﻿
 using System;
+using Grit.Simulation.Debug;
 using Grit.Simulation.Elements.ElementDefinitions;
+using Grit.Simulation.Helpers;
 using Grit.Simulation.Rendering;
 using Grit.Simulation.World.Regions.Chunks;
 using ImGuiNET;
@@ -21,6 +23,7 @@ public class SimulationController
     private readonly SimulationRenderer renderer;
     private readonly ChunkManager chunkManager;
     
+    private Point previousMouseWorldPosition;
     private float previousScrollValue;
     private bool isSnowingToggled;
 
@@ -46,6 +49,7 @@ public class SimulationController
 
     public void FixedUpdate()
     {
+        Logger.Write(Logger.LogType.INFO, this, "UpdateStart");
         chunkManager.FixedUpdate();
         
         simulation.FixedUpdate();
@@ -60,6 +64,8 @@ public class SimulationController
         spriteBatch.Begin(samplerState: SamplerState.PointClamp, transformMatrix: cameraMatrix);
 
         renderer.DrawWithMatrix(spriteBatch);
+        
+        DebugDrawer.Draw(spriteBatch);
 
         spriteBatch.End();
 
@@ -124,14 +130,25 @@ public class SimulationController
             if (Grit.ScreenBounds.Contains(InputManager.Mouse.Position))
             {
                 if(InputManager.IsMouseButtonDown(MouseButton.Left))
-                    simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new SandElement(mouseWorldPos.X, mouseWorldPos.Y));
+                    foreach ((int x, int y) in MathG.IterateLine(previousMouseWorldPosition.X, previousMouseWorldPosition.Y, mouseWorldPos.X, mouseWorldPos.Y))
+                    {
+                        simulation.SetElementAt(x, y, new SandElement(x, y));
+                    }
             
                 if(InputManager.IsMouseButtonDown(MouseButton.Right))
-                    simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new StoneElement(mouseWorldPos.X, mouseWorldPos.Y));
+                    foreach ((int x, int y) in MathG.IterateLine(previousMouseWorldPosition.X, previousMouseWorldPosition.Y, mouseWorldPos.X, mouseWorldPos.Y))
+                    {
+                        simulation.SetElementAt(x, y, new StoneElement(x, y));
+                    }
             
                 if(InputManager.IsMouseButtonDown(MouseButton.Middle))
-                    simulation.SetElementAt(mouseWorldPos.X, mouseWorldPos.Y, new WaterElement(mouseWorldPos.X, mouseWorldPos.Y));
+                    foreach ((int x, int y) in MathG.IterateLine(previousMouseWorldPosition.X, previousMouseWorldPosition.Y, mouseWorldPos.X, mouseWorldPos.Y))
+                    {
+                        simulation.SetElementAt(x, y, new TestLiquidElement(x, y));
+                    }
             }
+
+            previousMouseWorldPosition = mouseWorldPos;
         }
         
         if (!ImGui.GetIO().WantCaptureKeyboard)

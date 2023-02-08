@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using Grit.Simulation.Helpers;
+using Microsoft.Xna.Framework;
 
 namespace Grit.Simulation.World.Regions;
 

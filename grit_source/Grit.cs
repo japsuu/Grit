@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Grit.Simulation;
+using Grit.Simulation.Helpers;
 using Grit.UI;
 using MonoGame.Extended;
 using MonoGame.Extended.ViewportAdapters;

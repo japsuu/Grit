@@ -12,7 +12,7 @@ public class StoneElement : Element
             StartY);
 
     public override ushort Id => 2;
-    protected override ElementForm InitialForm => ElementForm.Solid;
+    protected override InteractionType InitialInteractionType => InteractionType.Solid;
 
     public StoneElement(int x, int y) : base(x, y)
     {
