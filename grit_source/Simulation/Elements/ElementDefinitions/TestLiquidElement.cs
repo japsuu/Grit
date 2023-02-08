@@ -1,5 +1,5 @@
 ﻿using System;
-using Grit.Simulation.Debug;
+using Grit.Simulation.DebugDraw;
 using Grit.Simulation.Helpers;
 using Microsoft.Xna.Framework;
 
