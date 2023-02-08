@@ -10,11 +10,12 @@ Built in MonoGame.
 
 ## Currently implemented:
 - Solids, liquids, and gases,
-- Chunking,
+- Infinite world with chunking,
+- Fixed timestep,
 - Dirty recting,
 - Minecraft-like random ticking system,
-- Plethora of debugging tools.
+- Plethora of debugging tools (with ImGUI support!).
 
 ---
 
-Most of the interesting logic can be found [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/WorldMatrix.cs) (WorldMatrix.cs) and [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/DirtyChunk.cs) (DirtyChunk.cs)
+Most of the interesting logic can be found [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/Simulation.cs) (Simulation.cs) and [here](https://github.com/japsuu/Grit/blob/main/grit_source/Simulation/World/Regions/Chunks/Chunk.cs) (Chunk.cs)
